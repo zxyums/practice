@@ -3,47 +3,52 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
 const ExcelProcessor: React.FC = () => {
+  // Function to handle file reading, modification, and download
   const handleFileProcess = async () => {
     try {
-      const response = await fetch('/your-file.xlsx');
+      // Step 1: Fetch the Excel file from public or assets folder
+      const response = await fetch('/your-file.xlsx'); // Change to the correct path of your file
       const blob = await response.blob();
       const fileReader = new FileReader();
 
       fileReader.onload = (e) => {
+        // Step 2: Convert the file content to ArrayBuffer
         const arrayBuffer = e.target?.result as ArrayBuffer;
+
+        // Step 3: Read the file using XLSX.read with correct type
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-        // Select the first sheet and get the data
+        // Step 4: Select the first sheet and get the data as JSON array
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Modify the data (example adds a new row)
+        // Step 5: Modify the data (Example: Adding a new row to the sheet)
         const newRow = ['New Data 1', 'New Data 2', 'New Data 3'];
         sheetData.push(newRow);
 
-        // Create a new worksheet with the modified data
+        // Step 6: Convert the modified data back to a new worksheet
         const newWorksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-        // Create a new workbook and append the modified worksheet
+        // Step 7: Create a new workbook and append the modified worksheet
         const newWorkbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Modified Sheet');
 
-        // Step 1: Use XLSX.write to get an ArrayBuffer
+        // Step 8: Generate a new ArrayBuffer from the modified workbook
         const newWorkbookArrayBuffer = XLSX.write(newWorkbook, {
           bookType: 'xlsx',
-          type: 'array',
+          type: 'array', // Output as array buffer
         });
 
-        // Step 2: Convert the ArrayBuffer to a Blob
+        // Step 9: Create a Blob from the ArrayBuffer
         const newExcelBlob = new Blob([newWorkbookArrayBuffer], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
 
-        // Step 3: Save the Blob as an Excel file
+        // Step 10: Use file-saver to download the modified Excel file
         saveAs(newExcelBlob, 'modified-file.xlsx');
       };
 
-      // Read the Excel file as an ArrayBuffer
+      // Step 11: Read the Excel file as an ArrayBuffer
       fileReader.readAsArrayBuffer(blob);
     } catch (error) {
       console.error('Error processing file:', error);
@@ -52,7 +57,7 @@ const ExcelProcessor: React.FC = () => {
 
   return (
     <div>
-      <button onClick={handleFileProcess}>Process Excel File</button>
+      <button onClick={handleFileProcess}>Process and Download Excel File</button>
     </div>
   );
 };
