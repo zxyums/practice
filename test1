@@ -1,15 +1,11 @@
 import React from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-// Import the file from the components folder
-import yourExcelFile from './your-file.xlsx';
 
 const ExcelProcessor: React.FC = () => {
-  // Function to handle file reading and modification
   const handleFileProcess = async () => {
     try {
-      // Step 1: Fetch the Excel file as a blob using the imported file
-      const response = await fetch(yourExcelFile);
+      const response = await fetch('/your-file.xlsx');
       const blob = await response.blob();
       const fileReader = new FileReader();
 
@@ -17,25 +13,33 @@ const ExcelProcessor: React.FC = () => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-        // Step 2: Select the first sheet and get the data
+        // Select the first sheet and get the data
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        // Step 3: Modify the data (this example adds a new row)
+        // Modify the data (example adds a new row)
         const newRow = ['New Data 1', 'New Data 2', 'New Data 3'];
         sheetData.push(newRow);
 
-        // Step 4: Create a new worksheet with the modified data
+        // Create a new worksheet with the modified data
         const newWorksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-        // Step 5: Create a new workbook and append the modified worksheet
+        // Create a new workbook and append the modified worksheet
         const newWorkbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Modified Sheet');
 
-        // Step 6: Convert the modified workbook to a blob
-        const newExcelBlob = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'blob' });
+        // Step 1: Use XLSX.write to get an ArrayBuffer
+        const newWorkbookArrayBuffer = XLSX.write(newWorkbook, {
+          bookType: 'xlsx',
+          type: 'array',
+        });
 
-        // Step 7: Save the new file using FileSaver
+        // Step 2: Convert the ArrayBuffer to a Blob
+        const newExcelBlob = new Blob([newWorkbookArrayBuffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+
+        // Step 3: Save the Blob as an Excel file
         saveAs(newExcelBlob, 'modified-file.xlsx');
       };
 
