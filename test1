@@ -21,17 +21,17 @@ const readFileAsArrayBuffer = (file: Blob): Promise<ArrayBuffer> => {
 const ExcelProcessor: React.FC = () => {
   const handleFileProcess = async () => {
     try {
-      // Step 1: Fetch the Excel file
-      const response = await fetch('/your-file.xlsx'); // Update with your actual file path
+      // Step 1: Fetch the Excel file (make sure the file exists in the correct location)
+      const response = await fetch('/your-file.xlsx'); // Make sure this path is correct
       if (!response.ok) {
         throw new Error(`Error fetching the file: ${response.statusText}`);
       }
       const blob = await response.blob();
 
-      // Step 2: Read the file as ArrayBuffer
+      // Step 2: Read the file as an ArrayBuffer using FileReader
       const arrayBuffer = await readFileAsArrayBuffer(blob);
 
-      // Step 3: Read the workbook (all sheets)
+      // Step 3: Read the workbook (all sheets) using XLSX
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
       // Step 4: Get all sheet names
@@ -41,7 +41,7 @@ const ExcelProcessor: React.FC = () => {
       const targetSheetName = sheetNames[0]; // Replace with the sheet name you want to modify
       const worksheet = workbook.Sheets[targetSheetName];
 
-      // Convert the sheet data to JSON array
+      // Convert the sheet data to a 2D array (rows and columns)
       const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       // Modify the data (for example, add a new row)
@@ -57,7 +57,7 @@ const ExcelProcessor: React.FC = () => {
       // Step 6: Write the modified workbook to an ArrayBuffer (keeping other sheets intact)
       const newWorkbookArrayBuffer = XLSX.write(workbook, {
         bookType: 'xlsx',
-        type: 'array',
+        type: 'array', // Ensures it's returned as ArrayBuffer
       });
 
       // Step 7: Create a Blob from the ArrayBuffer
