@@ -1,6 +1,8 @@
 import React from 'react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+// Import the Excel file directly
+import yourExcelFile from './your-file.xlsx'; // Adjust the path if necessary
 
 // Utility function to read the file as an ArrayBuffer using FileReader with async/await
 const readFileAsArrayBuffer = (file: Blob): Promise<ArrayBuffer> => {
@@ -21,17 +23,17 @@ const readFileAsArrayBuffer = (file: Blob): Promise<ArrayBuffer> => {
 const ExcelProcessor: React.FC = () => {
   const handleFileProcess = async () => {
     try {
-      // Step 1: Fetch the Excel file (make sure the file exists in the correct location)
-      const response = await fetch('/your-file.xlsx'); // Make sure this path is correct
+      // Step 1: Fetch the imported file as Blob
+      const response = await fetch(yourExcelFile); // Vite will serve this file as an asset
       if (!response.ok) {
         throw new Error(`Error fetching the file: ${response.statusText}`);
       }
       const blob = await response.blob();
 
-      // Step 2: Read the file as an ArrayBuffer using FileReader
+      // Step 2: Read the file as ArrayBuffer using FileReader
       const arrayBuffer = await readFileAsArrayBuffer(blob);
 
-      // Step 3: Read the workbook (all sheets) using XLSX
+      // Step 3: Read the workbook (all sheets)
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
       // Step 4: Get all sheet names
