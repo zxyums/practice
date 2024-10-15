@@ -8,7 +8,7 @@ const ExcelProcessor: React.FC = () => {
   const handleFileProcess = async () => {
     try {
       // Step 1: Fetch the imported file as Blob (handled by Vite's asset system)
-      const response = await fetch(yourExcelFile); 
+      const response = await fetch(yourExcelFile);
       if (!response.ok) {
         throw new Error(`Error fetching the file: ${response.statusText}`);
       }
@@ -18,23 +18,34 @@ const ExcelProcessor: React.FC = () => {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(await blob.arrayBuffer());
 
-      // Step 3: Access the sheet you want to modify (for example, the first sheet)
-      const worksheet = workbook.getWorksheet(1); // 1 is the index for the first sheet
+console.log(workbook.worksheets.map(sheet => sheet.name));
+
+      // Step 3: Access the sheet you want to modify by name or by index
+      const sheetName = 'Sheet1'; // Replace with your sheet name
+      let worksheet = workbook.getWorksheet(sheetName);
+
+      // If the sheet doesn't exist by name, try by index (this is optional)
+      if (!worksheet) {
+        worksheet = workbook.getWorksheet(1); // First sheet (index starts from 1)
+      }
+
+      // Check if worksheet exists before trying to add a row
+      if (!worksheet) {
+        throw new Error(`Worksheet not found. Please ensure the sheet exists.`);
+      }
 
       // Step 4: Modify the sheet (e.g., add a new row at the end)
       worksheet.addRow(['New Data 1', 'New Data 2', 'New Data 3']);
 
-      // Step 5: Keep drop-downs (data validation) and other formatting as they are
-
-      // Step 6: Write the modified workbook to a buffer
+      // Step 5: Write the modified workbook to a buffer
       const modifiedBuffer = await workbook.xlsx.writeBuffer();
 
-      // Step 7: Create a Blob from the modified buffer and save the modified file
+      // Step 6: Create a Blob from the modified buffer and save the modified file
       const newExcelBlob = new Blob([modifiedBuffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
 
-      // Step 8: Trigger file download using FileSaver
+      // Step 7: Trigger file download using FileSaver
       saveAs(newExcelBlob, 'modified-file.xlsx');
     } catch (error) {
       console.error('Error processing file:', error);
