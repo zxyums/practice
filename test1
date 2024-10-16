@@ -18,37 +18,40 @@ const ExcelTable: React.FC = () => {
         const dataValidationRules = [
             {
                 column: "A",  // Column 1
-                list: "Option1,Option2,Option3",  // Sample Options
+                list: ["Option1", "Option2", "Option3"],  // Sample Options
                 ruleName: "OptionsList1",
             },
             {
                 column: "B",  // Column 2
-                list: "Choice1,Choice2,Choice3",
+                list: ["Choice1", "Choice2", "Choice3"],
                 ruleName: "OptionsList2",
             },
-            // ... Add more rules for each of the 50 columns
+            // Add more rules for each of the 50 columns as needed
         ];
 
-        // Define a new sheet for each rule set (named range)
+        // Define named ranges for each dropdown list
         dataValidationRules.forEach((rule, index) => {
-            const sheetName = `RuleSheet${index + 1}`;
-            const ruleSheetData = [rule.list.split(",")];
+            const ruleSheetName = `RuleSheet${index + 1}`;
+            const ruleSheetData = rule.list.map(option => [option]);
             const ruleSheet = XLSX.utils.aoa_to_sheet(ruleSheetData);
 
-            // Add validation named range
-            workbook.SheetNames.push(sheetName);
-            workbook.Sheets[sheetName] = ruleSheet;
+            // Add the sheet to the workbook
+            workbook.SheetNames.push(ruleSheetName);
+            workbook.Sheets[ruleSheetName] = ruleSheet;
 
-            // Apply data validation to the main sheet
+            // Define a named range for the list
+            workbook.Sheets[ruleSheetName]['!ref'] = `A1:A${rule.list.length}`;
+
+            // Set up data validation in the main sheet
             const colRange = `${rule.column}2:${rule.column}100`;
             worksheet["!dataValidation"] = worksheet["!dataValidation"] || [];
             worksheet["!dataValidation"].push({
                 sqref: colRange,
                 type: "list",
-                formula1: `${sheetName}!$A$1:$A$${ruleSheetData[0].length}`,
+                formula1: `='${ruleSheetName}'!$A$1:$A$${rule.list.length}`,
                 showErrorMessage: true,
                 errorTitle: "Invalid Input",
-                error: `Select from the list of valid options.`,
+                error: `Please select a valid option from the dropdown.`,
             });
         });
 
