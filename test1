@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { TextField, MenuItem, Select, FormControl, InputLabel, Button } from "@mui/material";
 
 const ProgressForm = () => {
-  const { register, handleSubmit, getValues, watch } = useForm();
+  const { register, handleSubmit, getValues, watch, setValue } = useForm();
   const [progress, setProgress] = useState(0);
 
   // Define the total number of form fields
-  const totalFields = 3;
+  const totalFields = 4;
 
   // Watch all form values to update the progress
   const formValues = watch();
@@ -14,7 +15,7 @@ const ProgressForm = () => {
   useEffect(() => {
     // Calculate the filled form fields
     const filledFields = Object.values(getValues()).filter(Boolean).length;
-    
+
     // Calculate progress as a percentage
     const calculatedProgress = (filledFields / totalFields) * 100;
     setProgress(calculatedProgress);
@@ -27,22 +28,46 @@ const ProgressForm = () => {
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <label>
-          Name:
-          <input type="text" {...register("name")} />
-        </label>
-        <br />
-        <label>
-          Email:
-          <input type="email" {...register("email")} />
-        </label>
-        <br />
-        <label>
-          Age:
-          <input type="number" {...register("age")} />
-        </label>
-        <br />
-        <button type="submit">Submit</button>
+        <TextField
+          label="Name"
+          variant="outlined"
+          {...register("name")}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label="Email"
+          variant="outlined"
+          type="email"
+          {...register("email")}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label="Age"
+          variant="outlined"
+          type="number"
+          {...register("age")}
+          fullWidth
+          margin="normal"
+        />
+        
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Gender</InputLabel>
+          <Select
+            label="Gender"
+            {...register("gender")}
+            onChange={(e) => setValue("gender", e.target.value)}
+          >
+            <MenuItem value="male">Male</MenuItem>
+            <MenuItem value="female">Female</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Button type="submit" variant="contained" color="primary">
+          Submit
+        </Button>
       </form>
 
       <div style={{ marginTop: "20px" }}>
