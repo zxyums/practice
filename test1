@@ -2,9 +2,9 @@ import React from 'react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Define parent and child dropdown options
+// Define parent and child dropdown options explicitly
 const parentDropdownOptions = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
-const cascadingOptionsMap: Record<string, string[]> = {
+const childOptionsMap: Record<string, string[]> = {
   'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
   'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
   'Parent Option 3': ['Child 3.1', 'Child 3.2', 'Child 3.3'],
@@ -30,17 +30,17 @@ const ExcelExport: React.FC = () => {
       { header: 'Column 4 (Normal Dropdown)', key: 'normal4', width: 30 },
     ];
 
-    // Add dropdown options to HiddenSheet (Parent and Child)
+    // Add parent dropdown options to HiddenSheet (in Column A)
     parentDropdownOptions.forEach((option, idx) => {
       hiddenSheet.getCell(`A${idx + 1}`).value = option;
     });
 
-    let rowOffset = 10;
-    Object.keys(cascadingOptionsMap).forEach((parentOption) => {
-      cascadingOptionsMap[parentOption].forEach((childOption, childIdx) => {
-        hiddenSheet.getCell(`B${rowOffset + childIdx}`).value = childOption;
+    // Add child dropdown options explicitly for each parent in HiddenSheet (in Columns B-D)
+    parentDropdownOptions.forEach((parentOption, idx) => {
+      const children = childOptionsMap[parentOption];
+      children.forEach((childOption, childIdx) => {
+        hiddenSheet.getCell(`${String.fromCharCode(66 + idx)}${childIdx + 1}`).value = childOption;
       });
-      rowOffset += cascadingOptionsMap[parentOption].length;
     });
 
     // Apply dropdowns to MainSheet
@@ -60,11 +60,11 @@ const ExcelExport: React.FC = () => {
         error: 'Please select a valid option from the Parent dropdown.',
       };
 
-      // Add cascading dropdown to child based on parent value
+      // Add static cascading dropdown based on parent value
       childCell.dataValidation = {
         type: 'list',
         allowBlank: false,
-        formula1: `INDIRECT("HiddenSheet!B"&MATCH(A${i},'HiddenSheet'!A$1:A$${parentDropdownOptions.length},0)+9)`,
+        formula1: `=IF(A${i}="Parent Option 1", 'HiddenSheet'!$B$1:$B$3, IF(A${i}="Parent Option 2", 'HiddenSheet'!$C$1:$C$3, 'HiddenSheet'!$D$1:$D$3))`,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Child dropdown.',
@@ -96,12 +96,12 @@ const ExcelExport: React.FC = () => {
 
     // Save the workbook
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_with_validations.xlsx');
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_with_validations_fixed.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Excel with Validations</button>
+      <button onClick={handleDownloadExcel}>Download Fixed Excel with Dropdowns</button>
     </div>
   );
 };
