@@ -79,15 +79,10 @@ const ExcelExport: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, mainSheet, 'MainSheet'); // Add main sheet
     XLSX.utils.book_append_sheet(wb, hiddenSheet, 'HiddenSheet'); // Add hidden sheet
 
-    // Make sure the main sheet is the first visible sheet
-    wb.SheetNames[0] = 'MainSheet';
-
-    // Hide the hidden sheet from users
-    if (!wb.Workbook) wb.Workbook = { Sheets: [] };
-    wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Set hidden sheet
-
-    // Set the first sheet (main sheet) to be active when the workbook is opened
-    wb.Workbook.Views = [{ activeTab: 0 }];
+    // Make the MainSheet active by default and hide the HiddenSheet
+    wb.Workbook = { Sheets: [] };
+    wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Hide hidden sheet
+    wb.Workbook.Views = [{ activeTab: 0, firstSheet: 0, visibility: 'visible' }]; // Ensure MainSheet is active
 
     // Trigger the file download
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
