@@ -1,98 +1,79 @@
 import React from 'react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Define parent dropdown options
+// Define parent and child dropdown options
 const parentDropdownOptions = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
-
-// Define cascading dropdown options based on parent selection
 const cascadingOptionsMap: Record<string, string[]> = {
   'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
   'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
   'Parent Option 3': ['Child 3.1', 'Child 3.2', 'Child 3.3'],
 };
 
-// Helper function to add dropdown options to the hidden sheet
-const addDropdownOptionsToHiddenSheet = (ws: XLSX.WorkSheet, startRow: number, options: string[], col = 'A'): string => {
-  options.forEach((option, idx) => {
-    const cell = `${col}${startRow + idx}`;
-    ws[cell] = { t: 's', v: option };
-  });
-  return `$${col}$${startRow}:$${col}$${startRow + options.length - 1}`;
-};
-
 const ExcelExport: React.FC = () => {
-  const handleDownloadExcel = () => {
-    const wb = XLSX.utils.book_new(); // Create a new workbook
+  const handleDownloadExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    
+    // Create MainSheet and HiddenSheet
+    const mainSheet = workbook.addWorksheet('MainSheet');
+    const hiddenSheet = workbook.addWorksheet('HiddenSheet');
 
-    // Main sheet setup with headers "Column 1" (Parent) and "Column 2" (Child)
-    const mainSheet = XLSX.utils.aoa_to_sheet([['Column 1', 'Column 2']]);
+    // Add headers to MainSheet
+    mainSheet.columns = [
+      { header: 'Column 1', key: 'parent', width: 30 },
+      { header: 'Column 2', key: 'child', width: 30 },
+    ];
 
-    // Hidden sheet to store the dropdown data
-    const hiddenSheet = XLSX.utils.aoa_to_sheet([[]]);
+    // Add dropdown options to HiddenSheet
+    parentDropdownOptions.forEach((option, idx) => {
+      hiddenSheet.getCell(`A${idx + 1}`).value = option;
+    });
 
-    // Add parent dropdown options to hidden sheet (Column A)
-    const parentRange = addDropdownOptionsToHiddenSheet(hiddenSheet, 1, parentDropdownOptions, 'A');
-
-    // Add cascading dropdown options (starting from row 10 in Column B)
     let rowOffset = 10;
-    Object.keys(cascadingOptionsMap).forEach((parentOption) => {
-      addDropdownOptionsToHiddenSheet(hiddenSheet, rowOffset, cascadingOptionsMap[parentOption], 'B');
+    Object.keys(cascadingOptionsMap).forEach((parentOption, idx) => {
+      cascadingOptionsMap[parentOption].forEach((childOption, childIdx) => {
+        hiddenSheet.getCell(`B${rowOffset + childIdx}`).value = childOption;
+      });
       rowOffset += cascadingOptionsMap[parentOption].length;
     });
 
-    // Set reference range for hidden sheet
-    hiddenSheet['!ref'] = `A1:B100`;
+    // Apply dropdowns to MainSheet
+    for (let i = 2; i <= 1000; i++) {
+      const parentCell = mainSheet.getCell(`A${i}`);
+      const childCell = mainSheet.getCell(`B${i}`);
 
-    // Apply data validation for Parent (Column 1) and Child (Column 2) dropdowns
-    const dataValidation: XLSX.DataValidation[] = [];
-    for (let row = 2; row <= 1000; row++) {
-      const parentCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 0 });
-      const childCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 1 });
-
-      // Parent dropdown validation (from hidden sheet)
-      dataValidation.push({
-        sqref: parentCellRef,
+      // Add parent dropdown from HiddenSheet
+      parentCell.dataValidation = {
         type: 'list',
-        formula1: `=HiddenSheet!${parentRange}`, // Refer to parent options
         allowBlank: false,
+        formula1: `HiddenSheet!$A$1:$A$${parentDropdownOptions.length}`,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Parent dropdown.',
-      });
+      };
 
-      // Cascading dropdown validation using INDIRECT for dynamic selection
-      dataValidation.push({
-        sqref: childCellRef,
+      // Add cascading dropdown to child based on parent value
+      childCell.dataValidation = {
         type: 'list',
-        formula1: `=INDIRECT("B"&MATCH(${parentCellRef},HiddenSheet!A$1:A$3,0)+10)`, // Cascading logic
         allowBlank: false,
+        formula1: `INDIRECT("B"&MATCH(A${i},HiddenSheet!A$1:A$${parentDropdownOptions.length},0)+9)`,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Child dropdown.',
-      });
+      };
     }
 
-    // Apply data validation rules to the main sheet
-    mainSheet['!dataValidation'] = dataValidation;
+    // Hide the HiddenSheet
+    hiddenSheet.state = 'hidden';
 
-    // Append main sheet and hidden sheet to workbook
-    XLSX.utils.book_append_sheet(wb, mainSheet, 'MainSheet');
-    XLSX.utils.book_append_sheet(wb, hiddenSheet, 'HiddenSheet');
-
-    // Ensure the MainSheet is active and HiddenSheet is hidden
-    wb.Workbook = { Sheets: [] };
-    wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Hide the hidden sheet properly
-    wb.Workbook.Views = [{ activeTab: 0 }]; // Set MainSheet as active
-
-    // Trigger the download for the user
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'final_cascading_dropdown.xlsx');
+    // Save the workbook
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_cascading_dropdown_exceljs.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Excel with Cascading Dropdowns</button>
+      <button onClick={handleDownloadExcel}>Download Excel with ExcelJS</button>
     </div>
   );
 };
