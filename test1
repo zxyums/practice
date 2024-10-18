@@ -60,7 +60,7 @@ const ExcelExport: React.FC = () => {
         error: 'Please select a valid option from the Parent dropdown.',
       };
 
-      // Add static cascading dropdown based on parent value
+      // Add hardcoded cascading dropdown without dynamic formulas
       childCell.dataValidation = {
         type: 'list',
         allowBlank: false,
@@ -96,12 +96,12 @@ const ExcelExport: React.FC = () => {
 
     // Save the workbook
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_with_validations_fixed.xlsx');
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_flat_dropdown_logic.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Fixed Excel with Dropdowns</button>
+      <button onClick={handleDownloadExcel}>Download Final Excel with Flat Dropdown Logic</button>
     </div>
   );
 };
