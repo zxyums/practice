@@ -43,7 +43,7 @@ const ExcelExport: React.FC = () => {
       });
     });
 
-    // Apply dropdowns to MainSheet
+    // Apply dropdowns to MainSheet for 1000 rows
     for (let i = 2; i <= 1000; i++) {
       const parentCell = mainSheet.getCell(`A${i}`);
       const childCell = mainSheet.getCell(`B${i}`);
@@ -60,15 +60,36 @@ const ExcelExport: React.FC = () => {
         error: 'Please select a valid option from the Parent dropdown.',
       };
 
-      // Add hardcoded cascading dropdown without dynamic formulas
-      childCell.dataValidation = {
-        type: 'list',
-        allowBlank: false,
-        formula1: `=IF(A${i}="Parent Option 1", 'HiddenSheet'!$B$1:$B$3, IF(A${i}="Parent Option 2", 'HiddenSheet'!$C$1:$C$3, 'HiddenSheet'!$D$1:$D$3))`,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the Child dropdown.',
-      };
+      // Apply static cascading dropdown logic for each parent-child relationship
+      // IF statements for each parent to load the correct children in each row
+      if (parentCell.value === 'Parent Option 1') {
+        childCell.dataValidation = {
+          type: 'list',
+          allowBlank: false,
+          formula1: `'HiddenSheet'!$B$1:$B$3`,
+          showErrorMessage: true,
+          errorTitle: 'Invalid Input',
+          error: 'Please select a valid option from the Child dropdown.',
+        };
+      } else if (parentCell.value === 'Parent Option 2') {
+        childCell.dataValidation = {
+          type: 'list',
+          allowBlank: false,
+          formula1: `'HiddenSheet'!$C$1:$C$3`,
+          showErrorMessage: true,
+          errorTitle: 'Invalid Input',
+          error: 'Please select a valid option from the Child dropdown.',
+        };
+      } else if (parentCell.value === 'Parent Option 3') {
+        childCell.dataValidation = {
+          type: 'list',
+          allowBlank: false,
+          formula1: `'HiddenSheet'!$D$1:$D$3`,
+          showErrorMessage: true,
+          errorTitle: 'Invalid Input',
+          error: 'Please select a valid option from the Child dropdown.',
+        };
+      }
 
       // Add normal dropdown to Column 3
       normalCell3.dataValidation = {
@@ -96,12 +117,12 @@ const ExcelExport: React.FC = () => {
 
     // Save the workbook
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_flat_dropdown_logic.xlsx');
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_cascading_dropdown_fixed.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Final Excel with Flat Dropdown Logic</button>
+      <button onClick={handleDownloadExcel}>Download Final Fixed Excel</button>
     </div>
   );
 };
