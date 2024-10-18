@@ -46,7 +46,7 @@ const ExcelExport: React.FC = () => {
       parentCell.dataValidation = {
         type: 'list',
         allowBlank: false,
-        formula1: `HiddenSheet!$A$1:$A$${parentDropdownOptions.length}`,
+        formula1: `'HiddenSheet'!$A$1:$A$${parentDropdownOptions.length}`,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Parent dropdown.',
@@ -56,7 +56,7 @@ const ExcelExport: React.FC = () => {
       childCell.dataValidation = {
         type: 'list',
         allowBlank: false,
-        formula1: `INDIRECT("B"&MATCH(A${i},HiddenSheet!A$1:A$${parentDropdownOptions.length},0)+9)`,
+        formula1: `INDIRECT("B"&MATCH(A${i},'HiddenSheet'!A$1:A$${parentDropdownOptions.length},0)+9)`,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Child dropdown.',
@@ -68,12 +68,12 @@ const ExcelExport: React.FC = () => {
 
     // Save the workbook
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_cascading_dropdown_exceljs.xlsx');
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'fixed_cascading_dropdown_exceljs.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Excel with ExcelJS</button>
+      <button onClick={handleDownloadExcel}>Download Excel with Fixed Dropdowns</button>
     </div>
   );
 };
