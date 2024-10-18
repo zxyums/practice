@@ -1,90 +1,50 @@
-import React from 'react';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+Here are the common limitations shared between ExcelJS and xlsx (SheetJS) when working with Excel files in a browser or JavaScript environment:
 
-// Define options for each static parent dropdown
-const parentDropdownOptions: string[] = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
+1. No Support for Macros (VBA):
 
-// Define cascading dropdown values based on the parent selection
-const cascadingOptionsMap: Record<string, string[]> = {
-  'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
-  'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
-  'Parent Option 3': ['Child 3.1', 'Child 3.2', 'Child 3.3'],
-};
+Both ExcelJS and xlsx do not support Excel macros. Macros (written in VBA) are ignored when reading files, and neither library provides functionality to create or run macros.
 
-// Helper function to convert dropdown options into named ranges in the Excel sheet
-const createNamedRange = (ws: XLSX.WorkSheet, rangeName: string, options: string[], startRow: number) => {
-  options.forEach((option, idx) => {
-    ws[`A${startRow + idx}`] = { t: 's', v: option }; // Place dropdown options in a hidden column
-  });
-  ws['!ref'] = `A${startRow}:${`A${startRow + options.length - 1}`}`; // Define the named range
-  return `Sheet1!A${startRow}:A${startRow + options.length - 1}`; // Return the range reference
-};
+2. Limited Formula Support:
 
-const ExcelExport: React.FC = () => {
-  const handleDownloadExcel = () => {
-    const wb = XLSX.utils.book_new(); // Create a new workbook
-    const ws = XLSX.utils.aoa_to_sheet([[]]); // Create an empty worksheet
+Both libraries allow setting and reading formulas, but they cannot calculate or evaluate the results of those formulas. Formulas are read as strings and written as-is, meaning the actual calculations need to be done within Excel.
 
-    // Define the headers
-    const headers = ['Parent Column', 'Child Column'];
+3. No Chart Support:
 
-    // Place the headers in the sheet
-    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
+ExcelJS and xlsx both lack support for handling Excel charts. If your Excel file contains charts, the libraries will ignore them when reading, and there’s no way to create or modify charts programmatically.
 
-    // Create named ranges for parent dropdown options
-    const parentRange = createNamedRange(ws, 'ParentOptions', parentDropdownOptions, 10); // Start the hidden dropdown list from row 10
+4. Lack of Pivot Table Support:
 
-    // Create named ranges for cascading options
-    Object.keys(cascadingOptionsMap).forEach((parentOption, idx) => {
-      createNamedRange(ws, parentOption.replace(/ /g, ''), cascadingOptionsMap[parentOption], 20 + idx * 5); // Start from row 20 and increment for each cascading option group
-    });
+Neither ExcelJS nor xlsx supports pivot tables. While you can manipulate the raw data, pivot tables cannot be created, read, or modified using these libraries.
 
-    // Apply data validation to the parent column
-    const dataValidation: XLSX.DataValidation[] = [];
-    for (let row = 2; row <= 100; row++) {
-      const parentCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 0 });
-      const childCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 1 });
+5. Limited Handling of Complex Formatting:
 
-      // Parent dropdown validation
-      dataValidation.push({
-        sqref: parentCellRef,
-        type: 'list',
-        formula1: `=${parentRange}`, // Refer to the parent options named range
-        allowBlank: false,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the dropdown list.',
-      });
+While both libraries offer basic formatting options (such as font styles, colors, and cell alignment), they do not fully support more complex formatting features like:
 
-      // Cascading dropdown validation using INDIRECT
-      dataValidation.push({
-        sqref: childCellRef,
-        type: 'list',
-        formula1: `=INDIRECT(SUBSTITUTE(${parentCellRef}, " ", ""))`, // Use INDIRECT to reference the named range dynamically
-        allowBlank: false,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the cascading dropdown.',
-      });
-    }
+	•	Conditional formatting
+	•	Gradient fills
+	•	Custom number formats
+	•	Cell border styles
 
-    // Add data validation rules to the worksheet
-    ws['!dataValidation'] = dataValidation;
+6. Large File Performance Issues:
 
-    // Append the worksheet to the workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+Both libraries are limited by JavaScript’s single-threaded nature and browser memory constraints. Working with large files (thousands of rows and columns) can result in performance degradation, high memory consumption, or even browser crashes.
 
-    // Trigger file download
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'cascading_dropdown_template.xlsx');
-  };
+7. No Built-in Support for External Links:
 
-  return (
-    <div>
-      <button onClick={handleDownloadExcel}>Download Excel with Cascading Dropdowns</button>
-    </div>
-  );
-};
+Hyperlinks to external documents or websites may not be fully supported. The libraries allow adding hyperlinks, but they might not be preserved correctly when reading or writing more complex Excel files with external references.
 
-export default ExcelExport;
+8. Limited Data Validation:
+
+Both libraries offer basic support for data validation (like dropdown lists or simple input restrictions). However, advanced validation rules, such as custom validation formulas or complex data input restrictions, are either unsupported or difficult to implement.
+
+9. Handling of Shared Formulas:
+
+Shared formulas (formulas that apply across multiple cells or sheets) are not well supported. Both libraries treat each formula as an independent entity, which can result in inefficient handling of files with shared formulas.
+
+10. No Support for Advanced Excel Features:
+
+Features like comments, slicers, and 3D references are not supported by either library. Excel files that contain these features may lose this information when processed by ExcelJS or xlsx.
+
+Summary:
+
+While both ExcelJS and xlsx are powerful libraries for handling basic Excel operations in JavaScript environments, they fall short in dealing with more advanced Excel features like macros, charts, pivot tables, complex formatting, and formula calculations. Additionally, they both struggle with performance when working with large files in the browser. For full Excel functionality, you would need to rely on server-side libraries or native desktop applications like Excel itself.
