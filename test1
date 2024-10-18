@@ -5,14 +5,14 @@ import { saveAs } from 'file-saver';
 // Define options for each static parent dropdown
 const parentDropdownOptions = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
 
-// Define cascading dropdown values based on the parent selection
+// Define cascading dropdown values based on parent selection
 const cascadingOptionsMap: Record<string, string[]> = {
   'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
   'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
   'Parent Option 3': ['Child 3.1', 'Child 3.2', 'Child 3.3'],
 };
 
-// Helper function to add options to the hidden sheet
+// Helper function to add dropdown options to the hidden sheet
 const addDropdownOptionsToHiddenSheet = (ws: XLSX.WorkSheet, startRow: number, options: string[], col = 'A'): string => {
   options.forEach((option, idx) => {
     const cell = `${col}${startRow + idx}`;
@@ -24,45 +24,47 @@ const addDropdownOptionsToHiddenSheet = (ws: XLSX.WorkSheet, startRow: number, o
 const ExcelExport: React.FC = () => {
   const handleDownloadExcel = () => {
     const wb = XLSX.utils.book_new(); // Create a new workbook
-    const mainSheet = XLSX.utils.aoa_to_sheet([['Column 1', 'Column 2']]); // Main sheet with headers
 
-    // Create a hidden sheet to store dropdown options
+    // Main sheet with headers "Column 1" and "Column 2" where user selects dropdowns
+    const mainSheet = XLSX.utils.aoa_to_sheet([['Column 1', 'Column 2']]);
+
+    // Hidden sheet to store dropdown options
     const hiddenSheet = XLSX.utils.aoa_to_sheet([[]]);
 
-    // Add parent dropdown options to the hidden sheet starting at row 1 in column A
+    // Add parent dropdown options to the hidden sheet (row 1, column A)
     const parentRange = addDropdownOptionsToHiddenSheet(hiddenSheet, 1, parentDropdownOptions, 'A');
 
-    // Add cascading dropdown options to the hidden sheet starting at row 10 in column B
+    // Add cascading dropdown options to the hidden sheet (starting row 10, column B)
     let rowOffset = 10;
     Object.keys(cascadingOptionsMap).forEach((parentOption) => {
       addDropdownOptionsToHiddenSheet(hiddenSheet, rowOffset, cascadingOptionsMap[parentOption], 'B');
       rowOffset += cascadingOptionsMap[parentOption].length;
     });
 
-    hiddenSheet['!ref'] = `A1:B100`; // Set reference for hidden sheet
+    hiddenSheet['!ref'] = `A1:B100`; // Set reference range for the hidden sheet
 
-    // Apply data validation for parent and cascading dropdowns for rows 2 to 1000 (example, adjust as needed)
+    // Apply data validation for parent and cascading dropdowns for rows 2 to 1000
     const dataValidation: XLSX.DataValidation[] = [];
     for (let row = 2; row <= 1000; row++) {
       const parentCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 0 });
       const childCellRef = XLSX.utils.encode_cell({ r: row - 1, c: 1 });
 
-      // Parent dropdown validation (from hidden sheet)
+      // Parent dropdown validation from hidden sheet
       dataValidation.push({
         sqref: parentCellRef,
         type: 'list',
-        formula1: `=HiddenSheet!${parentRange}`, // Refer to the hidden sheet
+        formula1: `=HiddenSheet!${parentRange}`, // Refer to parent options
         allowBlank: false,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
         error: 'Please select a valid option from the Parent dropdown.',
       });
 
-      // Cascading dropdown validation using INDIRECT
+      // Cascading dropdown validation using INDIRECT for dynamic selection
       dataValidation.push({
         sqref: childCellRef,
         type: 'list',
-        formula1: `=INDIRECT("B"&MATCH(${parentCellRef},HiddenSheet!A$1:A$3,0)+10)`, // Cascading dropdown logic
+        formula1: `=INDIRECT("B"&MATCH(${parentCellRef},HiddenSheet!A$1:A$3,0)+10)`, // Cascading logic
         allowBlank: false,
         showErrorMessage: true,
         errorTitle: 'Invalid Input',
@@ -73,17 +75,17 @@ const ExcelExport: React.FC = () => {
     // Add data validation rules to the main sheet
     mainSheet['!dataValidation'] = dataValidation;
 
-    // Append both the main sheet and hidden sheet to the workbook
+    // Append both main sheet and hidden sheet to the workbook
     XLSX.utils.book_append_sheet(wb, mainSheet, 'MainSheet'); // Add main sheet
     XLSX.utils.book_append_sheet(wb, hiddenSheet, 'HiddenSheet'); // Add hidden sheet
 
-    // Hide the hidden sheet
+    // Hide the hidden sheet from users
     if (!wb.Workbook) wb.Workbook = { Sheets: [] };
-    wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Set sheet hidden
+    wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Set hidden sheet
 
-    // Trigger file download
+    // Trigger the file download
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'cascading_dropdown_fixed.xlsx');
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'cascading_dropdown_final.xlsx');
   };
 
   return (
