@@ -96,12 +96,12 @@ const ExcelExport: React.FC = () => {
 
     // Save the workbook
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_with_normal_dropdowns_fixed.xlsx');
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_with_validations.xlsx');
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Excel with Dropdowns</button>
+      <button onClick={handleDownloadExcel}>Download Excel with Validations</button>
     </div>
   );
 };
