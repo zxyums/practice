@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver';
 // Define options for each static parent dropdown
 const parentDropdownOptions = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
 
-// Define cascading dropdown values based on parent selection
+// Define cascading dropdown values based on the parent selection
 const cascadingOptionsMap: Record<string, string[]> = {
   'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
   'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
@@ -25,16 +25,16 @@ const ExcelExport: React.FC = () => {
   const handleDownloadExcel = () => {
     const wb = XLSX.utils.book_new(); // Create a new workbook
 
-    // Main sheet with headers "Column 1" and "Column 2" where user selects dropdowns
+    // Main sheet with headers "Column 1" and "Column 2" where users pick dropdown values
     const mainSheet = XLSX.utils.aoa_to_sheet([['Column 1', 'Column 2']]);
 
-    // Hidden sheet to store dropdown options
+    // Create a hidden sheet to store dropdown options
     const hiddenSheet = XLSX.utils.aoa_to_sheet([[]]);
 
-    // Add parent dropdown options to the hidden sheet (row 1, column A)
+    // Add parent dropdown options to the hidden sheet starting at row 1 in column A
     const parentRange = addDropdownOptionsToHiddenSheet(hiddenSheet, 1, parentDropdownOptions, 'A');
 
-    // Add cascading dropdown options to the hidden sheet (starting row 10, column B)
+    // Add cascading dropdown options to the hidden sheet starting at row 10 in column B
     let rowOffset = 10;
     Object.keys(cascadingOptionsMap).forEach((parentOption) => {
       addDropdownOptionsToHiddenSheet(hiddenSheet, rowOffset, cascadingOptionsMap[parentOption], 'B');
@@ -79,9 +79,15 @@ const ExcelExport: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, mainSheet, 'MainSheet'); // Add main sheet
     XLSX.utils.book_append_sheet(wb, hiddenSheet, 'HiddenSheet'); // Add hidden sheet
 
+    // Make sure the main sheet is the first visible sheet
+    wb.SheetNames[0] = 'MainSheet';
+
     // Hide the hidden sheet from users
     if (!wb.Workbook) wb.Workbook = { Sheets: [] };
     wb.Workbook.Sheets.push({ name: 'HiddenSheet', Hidden: 1 }); // Set hidden sheet
+
+    // Set the first sheet (main sheet) to be active when the workbook is opened
+    wb.Workbook.Views = [{ activeTab: 0 }];
 
     // Trigger the file download
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
