@@ -5,22 +5,28 @@ import { saveAs } from 'file-saver'; // Import FileSaver.js
 const ExcelProcessor = () => {
   const handleFileRead = () => {
     // Fetch the Excel file from the public directory
-    fetch('/3Q2024_Template_Without_Macros.xlsx')
+    fetch('/3Q2024_Template_Without_Macros.xlsx', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+    })
       .then((response) => {
         if (!response.ok) {
           throw new Error('Failed to load the Excel file');
         }
-        return response.arrayBuffer(); // Ensure we get the file as an ArrayBuffer
+        return response.arrayBuffer(); // Ensure we get the file as an ArrayBuffer (binary)
       })
       .then(async (data) => {
         try {
           const workbook = new ExcelJS.Workbook();
           await workbook.xlsx.load(data); // Load the Excel data
 
-          console.log('Workbook loaded successfully:', workbook);
+          // Log the sheet names for debugging
+          console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
 
-          // Check if the first worksheet exists
-          const worksheet = workbook.getWorksheet(1);
+          // Access the worksheet by name
+          const worksheet = workbook.getWorksheet('3Q2024 Sanctions Assessment');
           if (!worksheet) {
             throw new Error('Worksheet not found!');
           }
