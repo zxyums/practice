@@ -1,30 +1,33 @@
-import React, { useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import * as XLSXStyle from 'xlsx-style';
+import React from 'react';
+import ExcelJS from 'exceljs';
+import excelFile from './assets/components/fluassessment/3Q2024_Template_Without_Macros.xlsx'; // Import the Excel file
 
 const ExcelProcessor = () => {
-  // Load the file when the component mounts or upon button click
+  // Function to handle reading, modifying, and downloading the Excel file
   const handleFileRead = () => {
-    fetch('/components/File/sample.xlsx')  // Adjust the path as per your file location
+    fetch(excelFile) // Fetch the imported file as a URL
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Failed to fetch the Excel file');
+          throw new Error('Failed to load the Excel file');
         }
         return response.arrayBuffer();
       })
-      .then((data) => {
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0]; // Assume first sheet
-        const worksheet = workbook.Sheets[sheetName];
+      .then(async (data) => {
+        // Create a new workbook and load the file content
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(data); // Load the Excel data
+
+        // Assume we are working with the first sheet
+        const worksheet = workbook.getWorksheet(1);
 
         // Write new data starting from row 3 (below headers)
         writeDataToWorksheet(worksheet, 3);
 
-        // Write back and download the updated Excel file
+        // Write the modified workbook to a blob and trigger download
         writeExcelFile(workbook);
       })
       .catch((error) => {
-        console.error('Error fetching the file:', error);
+        console.error('Error loading the file:', error);
       });
   };
 
@@ -33,28 +36,23 @@ const ExcelProcessor = () => {
     const newData = [
       ['Internal LOB 1', 'FLU 1', 'FLU LOB 1', 'email1@example.com', 'Transaction', 'Relationship 1', 'Type 1', 'Category 1', 'Product Family 1', 'Product Class 1'],
       ['Internal LOB 2', 'FLU 2', 'FLU LOB 2', 'email2@example.com', 'Transaction', 'Relationship 2', 'Type 2', 'Category 2', 'Product Family 2', 'Product Class 2'],
-      // Add more rows as needed
     ];
 
     newData.forEach((row, rowIndex) => {
+      const rowRef = worksheet.getRow(startRow + rowIndex);
       row.forEach((cell, colIndex) => {
-        const cellRef = XLSX.utils.encode_cell({ r: startRow + rowIndex, c: colIndex }); // Address like A3, B3, etc.
-        worksheet[cellRef] = { v: cell }; // Write data to the cell
+        rowRef.getCell(colIndex + 1).value = cell; // ExcelJS rows are 1-based index
       });
-    });
-
-    // Update the worksheet's range to include the new data
-    worksheet['!ref'] = XLSX.utils.encode_range({
-      s: { r: 0, c: 0 },
-      e: { r: startRow + newData.length - 1, c: newData[0].length - 1 },
+      rowRef.commit(); // Commit the row to the worksheet
     });
   };
 
   // Function to download the updated Excel file
-  const writeExcelFile = (workbook) => {
-    const newWorkbook = XLSXStyle.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const writeExcelFile = async (workbook) => {
+    const buffer = await workbook.xlsx.writeBuffer(); // Write the workbook to a buffer
 
-    const blob = new Blob([newWorkbook], { type: 'application/octet-stream' });
+    // Create a blob from the buffer and trigger download
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'updated_file.xlsx';
@@ -65,8 +63,8 @@ const ExcelProcessor = () => {
 
   return (
     <div>
-      <h1>Excel Data Processor</h1>
-      <button onClick={handleFileRead}>Read File from Directory and Download Updated Excel</button>
+      <h1>Excel Data Processor (Using ExcelJS)</h1>
+      <button onClick={handleFileRead}>Read and Download Excel</button>
     </div>
   );
 };
