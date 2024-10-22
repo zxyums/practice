@@ -1,87 +1,92 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver'; // Import FileSaver.js
 
-const ExcelProcessor = () => {
-  const handleFileRead = () => {
-    // Fetch the Excel file from the public directory
-    fetch('/3Q2024_Template_Without_Macros.xlsx', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-      },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to load the Excel file');
-        }
-        return response.arrayBuffer(); // Ensure we get the file as an ArrayBuffer (binary)
-      })
-      .then(async (data) => {
-        try {
-          const workbook = new ExcelJS.Workbook();
-          await workbook.xlsx.load(data); // Load the Excel data
+const ExcelProcessor1 = () => {
+  const [uploadedFile, setUploadedFile] = useState(null);
 
-          // Log the sheet names for debugging
-          console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
-
-          // Access the worksheet by name
-          const worksheet = workbook.getWorksheet('3Q2024 Sanctions Assessment');
-          if (!worksheet) {
-            throw new Error('Worksheet not found!');
-          }
-
-          // Write new data starting from row 3 (below headers)
-          writeDataToWorksheet(worksheet, 3);
-
-          // Write the modified workbook to a blob and trigger download
-          writeExcelFile(workbook);
-        } catch (error) {
-          console.error('Error processing the Excel file:', error);
-        }
-      })
-      .catch((error) => {
-        console.error('Error loading the file:', error);
-      });
+  // Handle file input change and set the uploaded file
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    setUploadedFile(file);
   };
 
-  const writeDataToWorksheet = (worksheet, startRow) => {
-    const newData = [
-      ['Internal LOB 1', 'FLU 1', 'FLU LOB 1', 'email1@example.com', 'Transaction', 'Relationship 1', 'Type 1', 'Category 1', 'Product Family 1', 'Product Class 1'],
-      ['Internal LOB 2', 'FLU 2', 'FLU LOB 2', 'email2@example.com', 'Transaction', 'Relationship 2', 'Type 2', 'Category 2', 'Product Family 2', 'Product Class 2'],
-    ];
+  // Function to handle reading, modifying, and downloading the uploaded file
+  const handleFileReadAndProcess = () => {
+    if (!uploadedFile) {
+      alert('Please upload an Excel file first!');
+      return;
+    }
 
-    newData.forEach((row, rowIndex) => {
-      const rowRef = worksheet.getRow(startRow + rowIndex);
-      if (!rowRef) {
-        console.error(`Row ${startRow + rowIndex} is undefined`);
-        return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const data = event.target.result;
+      const workbook = new ExcelJS.Workbook();
+
+      try {
+        await workbook.xlsx.load(data); // Load the uploaded Excel data
+
+        // Log sheet names for debugging
+        console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
+
+        // Access the first worksheet for simplicity (or use sheet name if needed)
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+          throw new Error('Worksheet not found!');
+        }
+
+        // Add a new column 'Errors' based on some logic
+        addErrorsColumn(worksheet);
+
+        // Write the modified workbook to a blob and trigger download
+        writeExcelFile(workbook, uploadedFile.name.replace('.xlsx', '_with_errors.xlsx'));
+      } catch (error) {
+        console.error('Error processing the Excel file:', error);
       }
+    };
 
-      row.forEach((cell, colIndex) => {
-        rowRef.getCell(colIndex + 1).value = cell; // ExcelJS rows are 1-based index
-      });
-      rowRef.commit(); // Commit the row to the worksheet
+    reader.readAsArrayBuffer(uploadedFile); // Read the uploaded file as ArrayBuffer
+  };
+
+  // Add an "Errors" column and apply custom logic for each row
+  const addErrorsColumn = (worksheet) => {
+    const errorColumnIndex = worksheet.columns.length + 1; // Adds the new column at the end
+    worksheet.getColumn(errorColumnIndex).header = 'Errors'; // Set the header of the new column
+
+    worksheet.eachRow((row, rowNumber) => {
+      // Custom logic for determining the error content for each row
+      // For simplicity, if the first cell is empty, we'll add "Missing Data" in the "Errors" column
+      if (!row.getCell(1).value) {
+        row.getCell(errorColumnIndex).value = 'Missing Data'; // Add error for empty first cell
+      } else {
+        row.getCell(errorColumnIndex).value = `Row ${rowNumber} is valid`; // Otherwise mark it as valid
+      }
     });
   };
 
-  // Function to download the updated Excel file using FileSaver.js
-  const writeExcelFile = async (workbook) => {
+  // Function to download the modified Excel file using FileSaver.js
+  const writeExcelFile = async (workbook, fileName) => {
     const buffer = await workbook.xlsx.writeBuffer(); // Write the workbook to a buffer
 
     // Create a blob from the buffer
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
     // Use FileSaver.js to trigger a download
-    saveAs(blob, 'updated_file.xlsx'); // This will prompt the download of the file
+    saveAs(blob, fileName); // This will prompt the download of the modified file
   };
 
   return (
     <div>
-      <h1>Excel Data Processor (Using ExcelJS and FileSaver.js)</h1>
-      <button onClick={handleFileRead}>Read and Download Excel</button>
+      <h1>Excel Data Processor with File Upload</h1>
+
+      {/* File Input for Uploading Excel File */}
+      <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
+      <button onClick={handleFileReadAndProcess}>Process and Download with Errors Column</button>
+
+      <h2>Or Download Template:</h2>
+      <button onClick={handleDownloadTemplate}>Download Original Template</button>
     </div>
   );
 };
 
-export default ExcelProcessor;
+export default ExcelProcessor1
