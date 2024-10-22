@@ -1,6 +1,6 @@
 import React from 'react';
 import ExcelJS from 'exceljs';
-import excelFile from './assets/components/fluassessment/3Q2024_Template_Without_Macros.xlsx'; // Import the Excel file
+import excelFile from './features/fluassessment/3Q2024_Template_Without_Macros.xlsx'; // Correct path
 
 const ExcelProcessor = () => {
   // Function to handle reading, modifying, and downloading the Excel file
