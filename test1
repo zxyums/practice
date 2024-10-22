@@ -1,130 +1,74 @@
-import React from 'react';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+import React, { useEffect } from 'react';
+import * as XLSX from 'xlsx';
+import * as XLSXStyle from 'xlsx-style';
 
-// Define parent and child dropdown options explicitly
-const parentDropdownOptions = ['Parent Option 1', 'Parent Option 2', 'Parent Option 3'];
-const childOptionsMap: Record<string, string[]> = {
-  'Parent Option 1': ['Child 1.1', 'Child 1.2', 'Child 1.3'],
-  'Parent Option 2': ['Child 2.1', 'Child 2.2', 'Child 2.3'],
-  'Parent Option 3': ['Child 3.1', 'Child 3.2', 'Child 3.3'],
-};
+const ExcelProcessor = () => {
+  // Load the file when the component mounts or upon button click
+  const handleFileRead = () => {
+    fetch('/components/File/sample.xlsx')  // Adjust the path as per your file location
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch the Excel file');
+        }
+        return response.arrayBuffer();
+      })
+      .then((data) => {
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0]; // Assume first sheet
+        const worksheet = workbook.Sheets[sheetName];
 
-// Define normal dropdown options for Column 3 and Column 4
-const normalDropdownOptionsColumn3 = ['Option A', 'Option B', 'Option C'];
-const normalDropdownOptionsColumn4 = ['Choice 1', 'Choice 2', 'Choice 3'];
+        // Write new data starting from row 3 (below headers)
+        writeDataToWorksheet(worksheet, 3);
 
-const ExcelExport: React.FC = () => {
-  const handleDownloadExcel = async () => {
-    const workbook = new ExcelJS.Workbook();
-    
-    // Create MainSheet and HiddenSheet
-    const mainSheet = workbook.addWorksheet('MainSheet');
-    const hiddenSheet = workbook.addWorksheet('HiddenSheet');
+        // Write back and download the updated Excel file
+        writeExcelFile(workbook);
+      })
+      .catch((error) => {
+        console.error('Error fetching the file:', error);
+      });
+  };
 
-    // Add headers to MainSheet (Parent-Child, Normal dropdowns)
-    mainSheet.columns = [
-      { header: 'Column 1 (Parent)', key: 'parent', width: 30 },
-      { header: 'Column 2 (Cascading)', key: 'child', width: 30 },
-      { header: 'Column 3 (Normal Dropdown)', key: 'normal3', width: 30 },
-      { header: 'Column 4 (Normal Dropdown)', key: 'normal4', width: 30 },
+  // Function to write new data programmatically
+  const writeDataToWorksheet = (worksheet, startRow) => {
+    const newData = [
+      ['Internal LOB 1', 'FLU 1', 'FLU LOB 1', 'email1@example.com', 'Transaction', 'Relationship 1', 'Type 1', 'Category 1', 'Product Family 1', 'Product Class 1'],
+      ['Internal LOB 2', 'FLU 2', 'FLU LOB 2', 'email2@example.com', 'Transaction', 'Relationship 2', 'Type 2', 'Category 2', 'Product Family 2', 'Product Class 2'],
+      // Add more rows as needed
     ];
 
-    // Add parent dropdown options to HiddenSheet (in Column A)
-    parentDropdownOptions.forEach((option, idx) => {
-      hiddenSheet.getCell(`A${idx + 1}`).value = option;
-    });
-
-    // Add child dropdown options explicitly for each parent in HiddenSheet (in Columns B-D)
-    parentDropdownOptions.forEach((parentOption, idx) => {
-      const children = childOptionsMap[parentOption];
-      children.forEach((childOption, childIdx) => {
-        hiddenSheet.getCell(`${String.fromCharCode(66 + idx)}${childIdx + 1}`).value = childOption;
+    newData.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        const cellRef = XLSX.utils.encode_cell({ r: startRow + rowIndex, c: colIndex }); // Address like A3, B3, etc.
+        worksheet[cellRef] = { v: cell }; // Write data to the cell
       });
     });
 
-    // Apply dropdowns to MainSheet for 1000 rows
-    for (let i = 2; i <= 1000; i++) {
-      const parentCell = mainSheet.getCell(`A${i}`);
-      const childCell = mainSheet.getCell(`B${i}`);
-      const normalCell3 = mainSheet.getCell(`C${i}`);
-      const normalCell4 = mainSheet.getCell(`D${i}`);
+    // Update the worksheet's range to include the new data
+    worksheet['!ref'] = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: startRow + newData.length - 1, c: newData[0].length - 1 },
+    });
+  };
 
-      // Add parent dropdown from HiddenSheet
-      parentCell.dataValidation = {
-        type: 'list',
-        allowBlank: false,
-        formula1: `'HiddenSheet'!$A$1:$A$${parentDropdownOptions.length}`,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the Parent dropdown.',
-      };
+  // Function to download the updated Excel file
+  const writeExcelFile = (workbook) => {
+    const newWorkbook = XLSXStyle.write(workbook, { bookType: 'xlsx', type: 'array' });
 
-      // Apply static cascading dropdown logic for each parent-child relationship
-      // IF statements for each parent to load the correct children in each row
-      if (parentCell.value === 'Parent Option 1') {
-        childCell.dataValidation = {
-          type: 'list',
-          allowBlank: false,
-          formula1: `'HiddenSheet'!$B$1:$B$3`,
-          showErrorMessage: true,
-          errorTitle: 'Invalid Input',
-          error: 'Please select a valid option from the Child dropdown.',
-        };
-      } else if (parentCell.value === 'Parent Option 2') {
-        childCell.dataValidation = {
-          type: 'list',
-          allowBlank: false,
-          formula1: `'HiddenSheet'!$C$1:$C$3`,
-          showErrorMessage: true,
-          errorTitle: 'Invalid Input',
-          error: 'Please select a valid option from the Child dropdown.',
-        };
-      } else if (parentCell.value === 'Parent Option 3') {
-        childCell.dataValidation = {
-          type: 'list',
-          allowBlank: false,
-          formula1: `'HiddenSheet'!$D$1:$D$3`,
-          showErrorMessage: true,
-          errorTitle: 'Invalid Input',
-          error: 'Please select a valid option from the Child dropdown.',
-        };
-      }
-
-      // Add normal dropdown to Column 3
-      normalCell3.dataValidation = {
-        type: 'list',
-        allowBlank: false,
-        formula1: `"${normalDropdownOptionsColumn3.join(',')}"`,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the Column 3 dropdown.',
-      };
-
-      // Add normal dropdown to Column 4
-      normalCell4.dataValidation = {
-        type: 'list',
-        allowBlank: false,
-        formula1: `"${normalDropdownOptionsColumn4.join(',')}"`,
-        showErrorMessage: true,
-        errorTitle: 'Invalid Input',
-        error: 'Please select a valid option from the Column 4 dropdown.',
-      };
-    }
-
-    // Hide the HiddenSheet
-    hiddenSheet.state = 'hidden';
-
-    // Save the workbook
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'final_cascading_dropdown_fixed.xlsx');
+    const blob = new Blob([newWorkbook], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'updated_file.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
     <div>
-      <button onClick={handleDownloadExcel}>Download Final Fixed Excel</button>
+      <h1>Excel Data Processor</h1>
+      <button onClick={handleFileRead}>Read File from Directory and Download Updated Excel</button>
     </div>
   );
 };
 
-export default ExcelExport;
+export default ExcelProcessor;
