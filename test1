@@ -4,20 +4,20 @@ import { saveAs } from 'file-saver'; // Import FileSaver.js
 
 const ExcelProcessor = () => {
   const handleFileRead = () => {
-    fetch('/3Q2024_Template_Without_Macros.xlsx') // Update with correct path if using public folder
+    // Fetch the Excel file from the public directory
+    fetch('/3Q2024_Template_Without_Macros.xlsx')
       .then((response) => {
         if (!response.ok) {
           throw new Error('Failed to load the Excel file');
         }
-        return response.arrayBuffer();
+        return response.arrayBuffer(); // Ensure we get the file as an ArrayBuffer
       })
       .then(async (data) => {
-        const workbook = new ExcelJS.Workbook();
         try {
+          const workbook = new ExcelJS.Workbook();
           await workbook.xlsx.load(data); // Load the Excel data
 
-          // Log sheet names for debugging
-          console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
+          console.log('Workbook loaded successfully:', workbook);
 
           // Check if the first worksheet exists
           const worksheet = workbook.getWorksheet(1);
@@ -45,7 +45,6 @@ const ExcelProcessor = () => {
       ['Internal LOB 2', 'FLU 2', 'FLU LOB 2', 'email2@example.com', 'Transaction', 'Relationship 2', 'Type 2', 'Category 2', 'Product Family 2', 'Product Class 2'],
     ];
 
-    // Ensure the worksheet is valid
     newData.forEach((row, rowIndex) => {
       const rowRef = worksheet.getRow(startRow + rowIndex);
       if (!rowRef) {
