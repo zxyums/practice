@@ -1,11 +1,9 @@
 import React from 'react';
 import ExcelJS from 'exceljs';
-import excelFile from './features/fluassessment/3Q2024_Template_Without_Macros.xlsx'; // Correct path
 
 const ExcelProcessor = () => {
-  // Function to handle reading, modifying, and downloading the Excel file
   const handleFileRead = () => {
-    fetch(excelFile) // Fetch the imported file as a URL
+    fetch('/3Q2024_Template_Without_Macros.xlsx') // Update with correct path if using public folder
       .then((response) => {
         if (!response.ok) {
           throw new Error('Failed to load the Excel file');
@@ -13,33 +11,47 @@ const ExcelProcessor = () => {
         return response.arrayBuffer();
       })
       .then(async (data) => {
-        // Create a new workbook and load the file content
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(data); // Load the Excel data
+        try {
+          await workbook.xlsx.load(data); // Load the Excel data
 
-        // Assume we are working with the first sheet
-        const worksheet = workbook.getWorksheet(1);
+          // Log sheet names for debugging
+          console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
 
-        // Write new data starting from row 3 (below headers)
-        writeDataToWorksheet(worksheet, 3);
+          // Check if the first worksheet exists
+          const worksheet = workbook.getWorksheet(1);
+          if (!worksheet) {
+            throw new Error('Worksheet not found!');
+          }
 
-        // Write the modified workbook to a blob and trigger download
-        writeExcelFile(workbook);
+          // Write new data starting from row 3 (below headers)
+          writeDataToWorksheet(worksheet, 3);
+
+          // Write the modified workbook to a blob and trigger download
+          writeExcelFile(workbook);
+        } catch (error) {
+          console.error('Error processing the Excel file:', error);
+        }
       })
       .catch((error) => {
         console.error('Error loading the file:', error);
       });
   };
 
-  // Function to write new data programmatically
   const writeDataToWorksheet = (worksheet, startRow) => {
     const newData = [
       ['Internal LOB 1', 'FLU 1', 'FLU LOB 1', 'email1@example.com', 'Transaction', 'Relationship 1', 'Type 1', 'Category 1', 'Product Family 1', 'Product Class 1'],
       ['Internal LOB 2', 'FLU 2', 'FLU LOB 2', 'email2@example.com', 'Transaction', 'Relationship 2', 'Type 2', 'Category 2', 'Product Family 2', 'Product Class 2'],
     ];
 
+    // Ensure the worksheet is valid
     newData.forEach((row, rowIndex) => {
       const rowRef = worksheet.getRow(startRow + rowIndex);
+      if (!rowRef) {
+        console.error(`Row ${startRow + rowIndex} is undefined`);
+        return;
+      }
+
       row.forEach((cell, colIndex) => {
         rowRef.getCell(colIndex + 1).value = cell; // ExcelJS rows are 1-based index
       });
