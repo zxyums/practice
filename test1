@@ -1,92 +1,40 @@
 import React, { useState } from 'react';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver'; // Import FileSaver.js
 
-const ExcelProcessor1 = () => {
-  const [uploadedFile, setUploadedFile] = useState(null);
+const EmailValidator = () => {
+  const [email, setEmail] = useState('');
+  const [isValid, setIsValid] = useState(null);
 
-  // Handle file input change and set the uploaded file
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    setUploadedFile(file);
+  // Function to validate email using regex
+  const validateEmail = (email) => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(email);
   };
 
-  // Function to handle reading, modifying, and downloading the uploaded file
-  const handleFileReadAndProcess = () => {
-    if (!uploadedFile) {
-      alert('Please upload an Excel file first!');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const data = event.target.result;
-      const workbook = new ExcelJS.Workbook();
-
-      try {
-        await workbook.xlsx.load(data); // Load the uploaded Excel data
-
-        // Log sheet names for debugging
-        console.log('Sheet Names:', workbook.worksheets.map(sheet => sheet.name));
-
-        // Access the first worksheet for simplicity (or use sheet name if needed)
-        const worksheet = workbook.getWorksheet(1);
-        if (!worksheet) {
-          throw new Error('Worksheet not found!');
-        }
-
-        // Add a new column 'Errors' based on some logic
-        addErrorsColumn(worksheet);
-
-        // Write the modified workbook to a blob and trigger download
-        writeExcelFile(workbook, uploadedFile.name.replace('.xlsx', '_with_errors.xlsx'));
-      } catch (error) {
-        console.error('Error processing the Excel file:', error);
-      }
-    };
-
-    reader.readAsArrayBuffer(uploadedFile); // Read the uploaded file as ArrayBuffer
-  };
-
-  // Add an "Errors" column and apply custom logic for each row
-  const addErrorsColumn = (worksheet) => {
-    const errorColumnIndex = worksheet.columns.length + 1; // Adds the new column at the end
-    worksheet.getColumn(errorColumnIndex).header = 'Errors'; // Set the header of the new column
-
-    worksheet.eachRow((row, rowNumber) => {
-      // Custom logic for determining the error content for each row
-      // For simplicity, if the first cell is empty, we'll add "Missing Data" in the "Errors" column
-      if (!row.getCell(1).value) {
-        row.getCell(errorColumnIndex).value = 'Missing Data'; // Add error for empty first cell
-      } else {
-        row.getCell(errorColumnIndex).value = `Row ${rowNumber} is valid`; // Otherwise mark it as valid
-      }
-    });
-  };
-
-  // Function to download the modified Excel file using FileSaver.js
-  const writeExcelFile = async (workbook, fileName) => {
-    const buffer = await workbook.xlsx.writeBuffer(); // Write the workbook to a buffer
-
-    // Create a blob from the buffer
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-    // Use FileSaver.js to trigger a download
-    saveAs(blob, fileName); // This will prompt the download of the modified file
+  // Handle input change and validate email
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+    setIsValid(validateEmail(value));
   };
 
   return (
     <div>
-      <h1>Excel Data Processor with File Upload</h1>
-
-      {/* File Input for Uploading Excel File */}
-      <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
-      <button onClick={handleFileReadAndProcess}>Process and Download with Errors Column</button>
-
-      <h2>Or Download Template:</h2>
-      <button onClick={handleDownloadTemplate}>Download Original Template</button>
+      <h2>Email Validator</h2>
+      <input
+        type="text"
+        value={email}
+        onChange={handleChange}
+        placeholder="Enter email"
+      />
+      {isValid === null ? (
+        ''
+      ) : isValid ? (
+        <p style={{ color: 'green' }}>Valid Email</p>
+      ) : (
+        <p style={{ color: 'red' }}>Invalid Email</p>
+      )}
     </div>
   );
 };
 
-export default ExcelProcessor1
+export default EmailValidator;
