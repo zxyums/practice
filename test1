@@ -1,37 +1,67 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { Button } from '@mui/material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 
-interface GroupHeaders {
-  [group: string]: string[];
-}
+// Constants for required headers and group headers
+const REQUIRED_GROUP_HEADERS: { [group: string]: string[] } = {
+  "LOB Details": ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"],
+  "Data Type": ["Relationship vs Transaction", "Transaction Type"],
+  "REFERENCE ONLY": ["Product / Transaction Category", "Category 1", "Category 2"],
+  "Transaction: Product": ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"],
+  "Legal Entity": ["Acting Legal Entity Name"],
+  "Data Storage": ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"],
+  "Data Scanning": ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."],
+  "Country Data Details": ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?", "Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."],
+  "Data Lineage": ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2", "Downstream AIT #3", "Downstream System Name #3", "Downstream AIT #4", "Downstream System Name #4", "Excluded from Sanctions Filter Direct Upstream Name"],
+  "Data Feed FLU Disposition": ["Sanctions Filter Rule", "Automated vs Manual", "GBB Identified", "ETS Unit Name", "Action Type", "Update Reason Details", "GES Review Comments"]
+};
+
+// Utility function to validate headers
+const validateHeaders = (headers: string[]): { isValid: boolean; message: string } => {
+  const requiredHeaders = Object.values(REQUIRED_GROUP_HEADERS).flat(); // Flatten all required headers into one array
+  const missingHeaders: string[] = [];
+  const incorrectOrder: string[] = [];
+
+  for (let i = 0; i < requiredHeaders.length; i++) {
+    if (headers[i] !== requiredHeaders[i]) {
+      if (!headers.includes(requiredHeaders[i])) {
+        missingHeaders.push(requiredHeaders[i]);
+      } else {
+        incorrectOrder.push(`Expected '${requiredHeaders[i]}' at position ${i + 1}, but found '${headers[i]}'`);
+      }
+    }
+  }
+
+  if (missingHeaders.length > 0) {
+    return { isValid: false, message: `Missing headers: ${missingHeaders.join(', ')}` };
+  }
+  
+  if (incorrectOrder.length > 0) {
+    return { isValid: false, message: `Incorrect header order:\n${incorrectOrder.join('\n')}` };
+  }
+
+  return { isValid: true, message: 'File is valid' };
+};
 
 const FileUpload = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Define group headers and column headers from the Excel screenshot
-  const requiredGroupHeaders: GroupHeaders = {
-    "LOB Details": ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"],
-    "Data Type": ["Relationship vs Transaction", "Transaction Type"],
-    "REFERENCE ONLY": ["Product / Transaction Category", "Category 1", "Category 2"],
-    "Transaction: Product": ["FLU Product Family Level 1", "FLU Product Class Level 2"]
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handles file input change event
+  const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-    setSelectedFile(null); // Reset file selection
+    setSelectedFile(null);
 
     if (file) {
       const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
       if (!validFileTypes.includes(`.${fileExtension}`)) {
         alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
         return;
       }
 
-      // Read the Excel file
       const fileData = await file.arrayBuffer();
       const workbook = XLSX.read(fileData, { type: 'array' });
 
@@ -40,28 +70,18 @@ const FileUpload = () => {
         return;
       }
 
-      // Validate headers in the first sheet
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][]; // Get rows with headers as first row
+      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
       const headers = sheetData[0];
-      const dataRows = sheetData.slice(1); // Remaining rows after headers
+      const dataRows = sheetData.slice(1); // Ignore header row
 
-      // Group and column header validation
-      const missingGroups: string[] = [];
-      for (const group in requiredGroupHeaders) {
-        const groupHeaders = requiredGroupHeaders[group];
-        const missingHeaders = groupHeaders.filter(header => !headers.includes(header));
-        if (missingHeaders.length > 0) {
-          missingGroups.push(`Group: "${group}" is missing headers: ${missingHeaders.join(', ')}`);
-        }
-      }
-
-      if (missingGroups.length > 0) {
-        alert(`The file is missing required headers:\n${missingGroups.join('\n')}`);
+      // Validate headers
+      const { isValid, message } = validateHeaders(headers);
+      if (!isValid) {
+        alert(message);
         return;
       }
 
-      // Check for minimum one row of data
       if (dataRows.length === 0) {
         alert('The file must contain at least one row of data.');
         return;
@@ -71,7 +91,7 @@ const FileUpload = () => {
       setSelectedFile(file);
       alert('File is valid and ready for upload.');
     }
-  };
+  }, []);
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -88,9 +108,7 @@ const FileUpload = () => {
 
     try {
       const response = await axios.post('http://localhost:5000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       console.log('File uploaded successfully', response.data);
       alert('File uploaded successfully!');
