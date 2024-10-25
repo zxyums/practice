@@ -1,40 +1,122 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { Button } from '@mui/material';
+import axios from 'axios';
+import * as XLSX from 'xlsx';
 
-const EmailValidator = () => {
-  const [email, setEmail] = useState('');
-  const [isValid, setIsValid] = useState(null);
+const FileUpload = () => {
+  const fileInputRef = useRef(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
-  // Function to validate email using regex
-  const validateEmail = (email) => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailPattern.test(email);
+  // Predefined group and column headers for validation
+  const requiredGroupHeaders = {
+    "Personal Info": ["Name", "Age", "Email"],
+    "Job Details": ["Position", "Department", "Salary"],
   };
 
-  // Handle input change and validate email
-  const handleChange = (e) => {
-    const value = e.target.value;
-    setEmail(value);
-    setIsValid(validateEmail(value));
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    setSelectedFile(null); // Reset file selection
+
+    if (file) {
+      const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      if (!validFileTypes.includes(`.${fileExtension}`)) {
+        alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
+        return;
+      }
+
+      // Read the Excel file
+      const fileData = await file.arrayBuffer();
+      const workbook = XLSX.read(fileData, { type: 'array' });
+
+      if (workbook.SheetNames.length === 0) {
+        alert('The file is empty. Please upload a valid Excel file with content.');
+        return;
+      }
+
+      // Validate headers in the first sheet
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); // Get rows with headers as first row
+      const headers = sheetData[0];
+      const dataRows = sheetData.slice(1); // Remaining rows after headers
+
+      // Group and column header validation
+      const missingGroups = [];
+      for (const group in requiredGroupHeaders) {
+        const groupHeaders = requiredGroupHeaders[group];
+        const missingHeaders = groupHeaders.filter(header => !headers.includes(header));
+        if (missingHeaders.length > 0) {
+          missingGroups.push(`Group: "${group}" is missing headers: ${missingHeaders.join(', ')}`);
+        }
+      }
+
+      if (missingGroups.length > 0) {
+        alert(`The file is missing required headers:\n${missingGroups.join('\n')}`);
+        return;
+      }
+
+      // Check for minimum one row of data
+      if (dataRows.length === 0) {
+        alert('The file must contain at least one row of data.');
+        return;
+      }
+
+      // All validations passed
+      setSelectedFile(file);
+      alert('File is valid and ready for upload.');
+    }
+  };
+
+  const handleButtonClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a valid file first!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await axios.post('http://localhost:5000/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('File uploaded successfully', response.data);
+      alert('File uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
+    }
   };
 
   return (
     <div>
-      <h2>Email Validator</h2>
       <input
-        type="text"
-        value={email}
-        onChange={handleChange}
-        placeholder="Enter email"
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+        accept=".xlsx, .xlsm, .xls"
       />
-      {isValid === null ? (
-        ''
-      ) : isValid ? (
-        <p style={{ color: 'green' }}>Valid Email</p>
-      ) : (
-        <p style={{ color: 'red' }}>Invalid Email</p>
-      )}
+      <Button variant="contained" color="primary" onClick={handleButtonClick}>
+        Select File
+      </Button>
+      {selectedFile && <p>Selected File: {selectedFile.name}</p>}
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={handleUpload}
+        disabled={!selectedFile}
+      >
+        Upload File
+      </Button>
     </div>
   );
 };
 
-export default EmailValidator;
+export default FileUpload;
