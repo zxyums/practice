@@ -1,80 +1,192 @@
-Here’s an industry-standard design documentation template for a File Upload Component based on current best practices. This design ensures accessibility, user feedback, and scalability across devices.
+Here’s a comprehensive design documentation for a File Upload Component in a format that aligns with industry standards and can be directly used for submission. This documentation includes high-level and low-level details, a sequence diagram description, and an example code snippet.
 
-File Upload Component (Excel) Design Documentation
+File Upload Component Design Documentation
 
-1. Component Specifications
+1. Overview
 
-	•	Upload Area:
-	•	Size: 400px width, 250px height (desktop), 90% width (mobile).
-	•	Border: 2px dashed #007bff, rounded corners (8px).
-	•	Background: #f9fafb (light background for clear contrast).
-	•	Text: Centered message “Drag and drop an Excel file or click to upload.”
-	•	Icon: Upload icon (20px size, color #333) above the text.
-	•	Button (“Choose File”):
-	•	Text: “Choose File”
-	•	Font: 16px, bold, Roboto
-	•	Background: #007bff (primary), text color #ffffff
-	•	Border Radius: 6px
-	•	Padding: 12px 24px
-	•	Hover: Background #0056b3
-	•	Disabled: Background #c2c8d1, cursor: not-allowed
-	•	Focus: Outline 2px solid #0056b3
-	•	Uploaded File Display:
-	•	File Name: Font size 14px, #333
-	•	File Size: Font size 12px, color #666
-	•	List Style: Each file is displayed with a remove icon (trash icon, color #d9534f on hover).
-	•	Error Message:
-	•	Font size: 14px, color #d9534f (error red)
-	•	Text: “Unsupported file type” or “File size exceeds limit of 5MB”
+1.1 Purpose
 
-2. Design System Guidelines
+The purpose of this component is to allow users to upload Excel files (.xlsx, .xls) in a user-friendly and accessible way. The component supports drag-and-drop functionality, provides instant validation, and displays feedback for both successful and unsuccessful uploads.
 
-	•	Primary Color: #007bff
-	•	Secondary Color: #333
-	•	Error Color: #d9534f
-	•	Success Color: #28a745 (for successful upload feedback)
-	•	Typography: Roboto, 400 for standard text, 700 for headers
-	•	Spacing: 16px for component spacing, 24px between sections
+1.2 Scope
 
-3. User Flows and Wireframes
+The component handles file type and size validations, showing error messages for unsupported files. It can function as a standalone component or interact with a backend server for additional validation and storage.
 
-	•	File Upload Flow:
-	1.	User drags a file or clicks to open the file selection dialog.
-	2.	If the file is supported (.xlsx, .xls and <5MB):
-	•	Displays in the file list.
-	•	Optional success message (e.g., “File uploaded successfully”) with a 3-second fade-out.
-	3.	If the file is unsupported:
-	•	Shows an error message in red below the upload area.
-	4.	Removing a file: User clicks the trash icon, which removes the file from the list and updates the component’s state.
+2. Requirements
 
-4. High-Fidelity Mockups
+2.1 Functional Requirements
 
-	•	Mockups for desktop and mobile layouts, showing spacing, alignment, button states, and error/success messaging.
+	•	Upload Types: Users can upload files by dragging and dropping them or by clicking to select.
+	•	Validation: The component validates the uploaded file’s type (.xlsx, .xls) and size (max 5MB).
+	•	Error Handling: The component displays error messages if the uploaded file does not meet type or size requirements.
+	•	File Display: Displays a list of uploaded files with options to remove files individually.
 
-5. Interaction and Animation Details
+2.2 Non-Functional Requirements
 
-	•	Hover Effects:
+	•	Performance: The component should respond quickly with minimal delay.
+	•	Accessibility: Full keyboard navigability, screen reader compatibility, and WCAG-compliant color contrast.
+	•	Responsiveness: Should adapt for both mobile and desktop screens.
+	•	Scalability: Capable of being extended for additional file types, larger file sizes, or integration with backend services.
+
+3. High-Level Design (HLD)
+
+3.1 User Journey
+
+	1.	File Upload: Users upload files by dragging and dropping or selecting them.
+	2.	Validation Feedback: Files are validated instantly upon upload.
+	3.	Feedback Handling:
+	•	Valid files are displayed in the file list.
+	•	Invalid files prompt an error message.
+	4.	File Removal: Users can remove files from the list.
+
+3.2 System Architecture
+
+	•	Frontend Component: Built in React (or similar framework) using state management to handle uploaded files.
+	•	Backend Integration (Optional): Connects to a backend API endpoint for additional file validation or storage.
+	•	Design System Compliance: Follows app-wide design guidelines for consistent colors, typography, and spacing.
+
+3.3 Main Modules
+
+	1.	Upload Area: Provides drag-and-drop and click-to-upload functionality.
+	2.	Validation Module: Checks for file type and size.
+	3.	File Display Module: Renders a list of successfully uploaded files, each with a remove button.
+	4.	Error Handling Module: Displays error messages below the upload area when validation fails.
+
+4. Low-Level Design (LLD)
+
+4.1 Component Specifications
+
+	•	Upload Area
+	•	Dimensions: 400px width, 250px height (desktop); 90% width (mobile).
+	•	Border: 2px dashed #007bff; 8px border radius.
+	•	Background: #f9fafb.
+	•	Placeholder Text: “Drag and drop an Excel file or click to upload.”
+	•	Icon: Upload icon (20px, #333) above placeholder text.
+	•	Hover State: Border changes to solid #0056b3.
+	•	Accessibility: aria-label="Upload Excel file".
+	•	Upload Button
+	•	Text: “Choose File”.
+	•	Font: 16px bold; background #007bff; text color #ffffff.
+	•	Padding: 12px padding, 6px border radius.
+	•	Hover: Background changes to #0056b3.
+	•	Focus: Outline 2px solid #0056b3.
+	•	File List Display
+	•	File Info: Displays file name and size in 14px, color #333.
+	•	Remove Icon: Trash icon beside each file, color #333; changes to #d9534f on hover.
+	•	Error Messages
+	•	Message: “Unsupported file type” or “File size exceeds 5MB.”
+	•	Font: 14px, color #d9534f.
+	•	Transition: Fade in over 200ms.
+
+4.2 Validation Logic
+
+	•	File Type Validation:
+	•	Acceptable Types: .xlsx, .xls.
+	•	Validation Function: (file) => file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel'.
+	•	Error Message: “Unsupported file type.”
+	•	File Size Validation:
+	•	Maximum Size: 5MB.
+	•	Validation Function: (file) => file.size <= 5242880.
+	•	Error Message: “File size exceeds limit of 5MB.”
+
+4.3 Accessibility
+
+	•	Keyboard Navigation: The component is fully keyboard-navigable, with focus indicators for all interactive elements.
+	•	Screen Reader Support:
+	•	Uses aria-live for dynamic messages (error or success).
+	•	Accessible labels for the file input.
+
+4.4 Responsive Design Adjustments
+
+	•	Mobile View: The upload area occupies 90% of screen width, centered with padding.
+	•	Desktop View: Upload area is 400px wide and centered.
+
+5. User Interaction and Feedback
+
+5.1 States and Transitions
+
+	•	Hover State:
+	•	Upload Area: Border changes to solid #0056b3.
 	•	Button: Background darkens to #0056b3.
-	•	Upload area border becomes solid on hover.
-	•	File Removal: Entry fades out smoothly with a 150ms fade animation on removal.
-	•	Error/Success Message Animation: Both messages fade in and out over 200ms for smooth visibility.
+	•	File Removal Animation: Fades out over 150ms.
+	•	Error/Success Fade-in: Error/success messages fade in over 200ms.
 
-6. Accessibility Standards
+5.2 Feedback Flow
 
-	•	Color Contrast: Text and buttons maintain a contrast ratio of at least 4.5:1.
-	•	Keyboard Navigation:
-	•	Tab to focus the upload area and button.
-	•	Keyboard shortcuts for removing files (focus on trash icon, press Enter).
-	•	Screen Reader:
-	•	Labels for buttons and input area (e.g., “Upload your Excel file”).
-	•	ARIA-live region for success/error messages to alert screen readers.
+	1.	Upload Attempt: The component checks file type and size.
+	2.	Validation Response:
+	•	If valid, the file is added to the list and displays a success message.
+	•	If invalid, an error message is displayed.
+	3.	File Removal: Removing a file updates the display and component state.
 
-7. Responsive Design Requirements
+6. Optional Backend API Integration
 
-	•	Mobile:
-	•	Upload area width set to 90%, centered with consistent padding.
-	•	Adjust file list display to fit screen width, with each file on a new line if needed.
-	•	Desktop:
-	•	Centered upload area with 400px width.
+6.1 API Details (If Backend Exists)
 
- 
+	•	Endpoint: POST /api/upload
+	•	Request Payload: { file: FileObject }
+	•	Response:
+	•	200: { success: true, message: "File uploaded successfully" }
+	•	400: { success: false, error: "Unsupported file type or file too large" }
+
+6.2 API Interaction Sequence
+
+	1.	Upload Request: Component sends the file to the backend.
+	2.	Server Validation: Backend checks file validity.
+	3.	Response: Server returns success or error, and the component updates the UI accordingly.
+
+7. Sequence Diagram
+
+User → File Upload Component: Initiates upload (drag-and-drop or click)
+File Upload Component → Validation Module: Validates file type and size
+Validation Module → File Upload Component: Returns validation result
+[Optional] File Upload Component → Backend Server: Upload file if valid
+Backend Server → File Upload Component: Returns upload success/error status
+File Upload Component → UI: Shows success or error message
+
+8. Code Snippet Example
+
+React Component Example
+
+import React, { useState } from 'react';
+
+const FileUploadComponent = () => {
+  const [files, setFiles] = useState([]);
+  const [error, setError] = useState('');
+
+  const validateFile = (file) => {
+    const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    const isValidType = validTypes.includes(file.type);
+    const isValidSize = file.size <= 5242880; // 5MB
+    return isValidType && isValidSize;
+  };
+
+  const handleUpload = (event) => {
+    const file = event.target.files[0];
+    if (validateFile(file)) {
+      setFiles([...files, file]);
+      setError('');
+    } else {
+      setError('Invalid file type or size.');
+    }
+  };
+
+  const removeFile = (index) => {
+    setFiles(files.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="upload-area">
+      <input type="file" onChange={handleUpload} aria-label="Upload Excel file" />
+      {error && <div className="error" style={{ color: '#d9534f' }}>{error}</div>}
+      <ul>
+        {files.map((file, index) => (
+          <li key={index}>
+            {file.name} ({(file.size / 1024).toFixed(2)} KB)
+            <button onClick={() => removeFile(index)} aria-label="Remove file">🗑️</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
