@@ -3,23 +3,29 @@ import { Button } from '@mui/material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 
-const FileUpload = () => {
-  const fileInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+interface GroupHeaders {
+  [group: string]: string[];
+}
 
-  // Predefined group and column headers for validation
-  const requiredGroupHeaders = {
-    "Personal Info": ["Name", "Age", "Email"],
-    "Job Details": ["Position", "Department", "Salary"],
+const FileUpload = () => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Define group headers and column headers from the Excel screenshot
+  const requiredGroupHeaders: GroupHeaders = {
+    "LOB Details": ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"],
+    "Data Type": ["Relationship vs Transaction", "Transaction Type"],
+    "REFERENCE ONLY": ["Product / Transaction Category", "Category 1", "Category 2"],
+    "Transaction: Product": ["FLU Product Family Level 1", "FLU Product Class Level 2"]
   };
 
-  const handleFileChange = async (event) => {
-    const file = event.target.files[0];
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
     setSelectedFile(null); // Reset file selection
 
     if (file) {
       const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
-      const fileExtension = file.name.split('.').pop().toLowerCase();
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
       if (!validFileTypes.includes(`.${fileExtension}`)) {
         alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
         return;
@@ -36,12 +42,12 @@ const FileUpload = () => {
 
       // Validate headers in the first sheet
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); // Get rows with headers as first row
+      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][]; // Get rows with headers as first row
       const headers = sheetData[0];
       const dataRows = sheetData.slice(1); // Remaining rows after headers
 
       // Group and column header validation
-      const missingGroups = [];
+      const missingGroups: string[] = [];
       for (const group in requiredGroupHeaders) {
         const groupHeaders = requiredGroupHeaders[group];
         const missingHeaders = groupHeaders.filter(header => !headers.includes(header));
@@ -68,7 +74,7 @@ const FileUpload = () => {
   };
 
   const handleButtonClick = () => {
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   };
 
   const handleUpload = async () => {
