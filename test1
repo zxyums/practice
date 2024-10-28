@@ -1,192 +1,164 @@
-Here’s a comprehensive design documentation for a File Upload Component in a format that aligns with industry standards and can be directly used for submission. This documentation includes high-level and low-level details, a sequence diagram description, and an example code snippet.
+import React, { useRef, useState, useCallback } from 'react';
+import { Button } from '@mui/material';
+import * as XLSX from 'xlsx';
 
-File Upload Component Design Documentation
+// Define group headers and their associated column headers in the correct order
+const REQUIRED_GROUP_HEADERS: { [group: string]: string[] } = {
+  "LOB Details": ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"],
+  "Data Type": ["Relationship vs Transaction", "Transaction Type"],
+  "Transaction: Product": ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"],
+  "Legal Entity": ["Acting Legal Entity Name"],
+  "Data Storage": ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"],
+  "Data Scanning": ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."],
+  "Country Data Details": ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?", "Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."],
+  "Data Lineage": ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2", "Downstream AIT #3", "Downstream System Name #3", "Downstream AIT #4", "Downstream System Name #4", "Excluded from Sanctions Filter Direct Upstream Name"],
+  "Data Feed FLU Disposition": ["Sanctions Filter Rule", "Automated vs Manual", "GBB Identified", "ETS Unit Name", "Action Type", "Update Reason Details", "GES Review Comments"],
+  "SPI": ["Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."],  // Added SPI group
+  "GES Use Only": ["GES Review Comments"]  // Added GES Use Only group
+};
 
-1. Overview
+// Function to flatten the required headers into one array
+const getAllRequiredHeaders = (): string[] => {
+  return Object.values(REQUIRED_GROUP_HEADERS).flat();
+};
 
-1.1 Purpose
+// Utility function to validate headers and group headers
+const validateHeaders = (headers: string[]): { isValid: boolean; message: string } => {
+  const allRequiredHeaders = getAllRequiredHeaders();
+  const missingHeaders: string[] = [];
+  const incorrectOrder: string[] = [];
 
-The purpose of this component is to allow users to upload Excel files (.xlsx, .xls) in a user-friendly and accessible way. The component supports drag-and-drop functionality, provides instant validation, and displays feedback for both successful and unsuccessful uploads.
+  for (let i = 0; i < allRequiredHeaders.length; i++) {
+    if (headers[i] !== allRequiredHeaders[i]) {
+      if (!headers.includes(allRequiredHeaders[i])) {
+        missingHeaders.push(allRequiredHeaders[i]);
+      } else {
+        incorrectOrder.push(`Expected '${allRequiredHeaders[i]}' at position ${i + 1}, but found '${headers[i]}'`);
+      }
+    }
+  }
 
-1.2 Scope
+  if (missingHeaders.length > 0) {
+    return { isValid: false, message: `Missing headers: ${missingHeaders.join(', ')}` };
+  }
+  
+  if (incorrectOrder.length > 0) {
+    return { isValid: false, message: `Incorrect header order:\n${incorrectOrder.join('\n')}` };
+  }
 
-The component handles file type and size validations, showing error messages for unsupported files. It can function as a standalone component or interact with a backend server for additional validation and storage.
+  return { isValid: true, message: 'File is valid' };
+};
 
-2. Requirements
+const FileUpload = () => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-2.1 Functional Requirements
+  // Placeholder for the Bearer token
+  const token = 'YOUR_BEARER_TOKEN_HERE';
 
-	•	Upload Types: Users can upload files by dragging and dropping them or by clicking to select.
-	•	Validation: The component validates the uploaded file’s type (.xlsx, .xls) and size (max 5MB).
-	•	Error Handling: The component displays error messages if the uploaded file does not meet type or size requirements.
-	•	File Display: Displays a list of uploaded files with options to remove files individually.
+  // Handles file input change event
+  const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    setSelectedFile(null);
 
-2.2 Non-Functional Requirements
+    if (file) {
+      const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-	•	Performance: The component should respond quickly with minimal delay.
-	•	Accessibility: Full keyboard navigability, screen reader compatibility, and WCAG-compliant color contrast.
-	•	Responsiveness: Should adapt for both mobile and desktop screens.
-	•	Scalability: Capable of being extended for additional file types, larger file sizes, or integration with backend services.
+      if (!validFileTypes.includes(`.${fileExtension}`)) {
+        alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
+        return;
+      }
 
-3. High-Level Design (HLD)
+      const fileData = await file.arrayBuffer();
+      const workbook = XLSX.read(fileData, { type: 'array' });
 
-3.1 User Journey
+      if (workbook.SheetNames.length === 0) {
+        alert('The file is empty. Please upload a valid Excel file with content.');
+        return;
+      }
 
-	1.	File Upload: Users upload files by dragging and dropping or selecting them.
-	2.	Validation Feedback: Files are validated instantly upon upload.
-	3.	Feedback Handling:
-	•	Valid files are displayed in the file list.
-	•	Invalid files prompt an error message.
-	4.	File Removal: Users can remove files from the list.
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+      const headers = sheetData[0];
+      const dataRows = sheetData.slice(1); // Ignore header row
 
-3.2 System Architecture
+      // Validate headers and group headers
+      const { isValid, message } = validateHeaders(headers);
+      if (!isValid) {
+        alert(message);
+        return;
+      }
 
-	•	Frontend Component: Built in React (or similar framework) using state management to handle uploaded files.
-	•	Backend Integration (Optional): Connects to a backend API endpoint for additional file validation or storage.
-	•	Design System Compliance: Follows app-wide design guidelines for consistent colors, typography, and spacing.
+      if (dataRows.length === 0) {
+        alert('The file must contain at least one row of data.');
+        return;
+      }
 
-3.3 Main Modules
+      // All validations passed
+      setSelectedFile(file);
+      alert('File is valid and ready for upload.');
+    }
+  }, []);
 
-	1.	Upload Area: Provides drag-and-drop and click-to-upload functionality.
-	2.	Validation Module: Checks for file type and size.
-	3.	File Display Module: Renders a list of successfully uploaded files, each with a remove button.
-	4.	Error Handling Module: Displays error messages below the upload area when validation fails.
-
-4. Low-Level Design (LLD)
-
-4.1 Component Specifications
-
-	•	Upload Area
-	•	Dimensions: 400px width, 250px height (desktop); 90% width (mobile).
-	•	Border: 2px dashed #007bff; 8px border radius.
-	•	Background: #f9fafb.
-	•	Placeholder Text: “Drag and drop an Excel file or click to upload.”
-	•	Icon: Upload icon (20px, #333) above placeholder text.
-	•	Hover State: Border changes to solid #0056b3.
-	•	Accessibility: aria-label="Upload Excel file".
-	•	Upload Button
-	•	Text: “Choose File”.
-	•	Font: 16px bold; background #007bff; text color #ffffff.
-	•	Padding: 12px padding, 6px border radius.
-	•	Hover: Background changes to #0056b3.
-	•	Focus: Outline 2px solid #0056b3.
-	•	File List Display
-	•	File Info: Displays file name and size in 14px, color #333.
-	•	Remove Icon: Trash icon beside each file, color #333; changes to #d9534f on hover.
-	•	Error Messages
-	•	Message: “Unsupported file type” or “File size exceeds 5MB.”
-	•	Font: 14px, color #d9534f.
-	•	Transition: Fade in over 200ms.
-
-4.2 Validation Logic
-
-	•	File Type Validation:
-	•	Acceptable Types: .xlsx, .xls.
-	•	Validation Function: (file) => file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel'.
-	•	Error Message: “Unsupported file type.”
-	•	File Size Validation:
-	•	Maximum Size: 5MB.
-	•	Validation Function: (file) => file.size <= 5242880.
-	•	Error Message: “File size exceeds limit of 5MB.”
-
-4.3 Accessibility
-
-	•	Keyboard Navigation: The component is fully keyboard-navigable, with focus indicators for all interactive elements.
-	•	Screen Reader Support:
-	•	Uses aria-live for dynamic messages (error or success).
-	•	Accessible labels for the file input.
-
-4.4 Responsive Design Adjustments
-
-	•	Mobile View: The upload area occupies 90% of screen width, centered with padding.
-	•	Desktop View: Upload area is 400px wide and centered.
-
-5. User Interaction and Feedback
-
-5.1 States and Transitions
-
-	•	Hover State:
-	•	Upload Area: Border changes to solid #0056b3.
-	•	Button: Background darkens to #0056b3.
-	•	File Removal Animation: Fades out over 150ms.
-	•	Error/Success Fade-in: Error/success messages fade in over 200ms.
-
-5.2 Feedback Flow
-
-	1.	Upload Attempt: The component checks file type and size.
-	2.	Validation Response:
-	•	If valid, the file is added to the list and displays a success message.
-	•	If invalid, an error message is displayed.
-	3.	File Removal: Removing a file updates the display and component state.
-
-6. Optional Backend API Integration
-
-6.1 API Details (If Backend Exists)
-
-	•	Endpoint: POST /api/upload
-	•	Request Payload: { file: FileObject }
-	•	Response:
-	•	200: { success: true, message: "File uploaded successfully" }
-	•	400: { success: false, error: "Unsupported file type or file too large" }
-
-6.2 API Interaction Sequence
-
-	1.	Upload Request: Component sends the file to the backend.
-	2.	Server Validation: Backend checks file validity.
-	3.	Response: Server returns success or error, and the component updates the UI accordingly.
-
-7. Sequence Diagram
-
-User → File Upload Component: Initiates upload (drag-and-drop or click)
-File Upload Component → Validation Module: Validates file type and size
-Validation Module → File Upload Component: Returns validation result
-[Optional] File Upload Component → Backend Server: Upload file if valid
-Backend Server → File Upload Component: Returns upload success/error status
-File Upload Component → UI: Shows success or error message
-
-8. Code Snippet Example
-
-React Component Example
-
-import React, { useState } from 'react';
-
-const FileUploadComponent = () => {
-  const [files, setFiles] = useState([]);
-  const [error, setError] = useState('');
-
-  const validateFile = (file) => {
-    const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
-    const isValidType = validTypes.includes(file.type);
-    const isValidSize = file.size <= 5242880; // 5MB
-    return isValidType && isValidSize;
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleUpload = (event) => {
-    const file = event.target.files[0];
-    if (validateFile(file)) {
-      setFiles([...files, file]);
-      setError('');
-    } else {
-      setError('Invalid file type or size.');
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a valid file first!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch('http://localhost:5000/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const data = await response.json();
+      console.log('File uploaded successfully', data);
+      alert('File uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
     }
   };
 
-  const removeFile = (index) => {
-    setFiles(files.filter((_, i) => i !== index));
-  };
-
   return (
-    <div className="upload-area">
-      <input type="file" onChange={handleUpload} aria-label="Upload Excel file" />
-      {error && <div className="error" style={{ color: '#d9534f' }}>{error}</div>}
-      <ul>
-        {files.map((file, index) => (
-          <li key={index}>
-            {file.name} ({(file.size / 1024).toFixed(2)} KB)
-            <button onClick={() => removeFile(index)} aria-label="Remove file">🗑️</button>
-          </li>
-        ))}
-      </ul>
+    <div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+        accept=".xlsx, .xlsm, .xls"
+      />
+      <Button variant="contained" color="primary" onClick={handleButtonClick}>
+        Select File
+      </Button>
+      {selectedFile && <p>Selected File: {selectedFile.name}</p>}
+      <Button
+        variant="contained"
+        color="secondary"
+        onClick={handleUpload}
+        disabled={!selectedFile}
+      >
+        Upload File
+      </Button>
     </div>
   );
 };
+
+export default FileUpload;
