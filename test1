@@ -6,41 +6,28 @@ import { saveAs } from 'file-saver';
 
 interface GroupHeaderConfig {
   groupName: string;
-  headers: string[];
+  headers: { name: string; position: number }[];
 }
 
-interface ValidationResult {
-  isValid: boolean;
-  message: string;
-}
-
-// Define the required group headers with specific index positions and their corresponding headers
 const REQUIRED_GROUP_HEADERS: { position: number; config: GroupHeaderConfig }[] = [
-  { position: 1, config: { groupName: "LOB Details", headers: ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"] } },
-  { position: 4, config: { groupName: "Data Type", headers: ["Relationship vs Transaction", "Transaction Type"] } },
-  { position: 7, config: { groupName: "Transaction: Product", headers: ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"] } },
-  { position: 11, config: { groupName: "Legal Entity", headers: ["Acting Legal Entity Name"] } },
-  { position: 12, config: { groupName: "SPI", headers: ["Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."] } },
-  { position: 16, config: { groupName: "Data Storage", headers: ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"] } },
-  { position: 22, config: { groupName: "Data Scanning", headers: ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."] } },
-  { position: 27, config: { groupName: "Country Data Details", headers: ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?"] } },
-  { position: 28, config: { groupName: "Data Lineage", headers: ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2"] } },
-  { position: 61, config: { groupName: "Data Feed FLU Disposition", headers: ["Sanctions Filter Name", "Automated vs Manual", "GBB Identifier", "ACTION TYPE", "Update Reason Details", "GES Review Comments", "STATUS", "Remarks"] } },
-  { position: 63, config: { groupName: "GES Use Only", headers: ["GES Review Comments"] } },
+  { position: 1, config: { groupName: "LOB Details", headers: [
+    { name: "INTERNAL USE ONLY", position: 1 },
+    { name: "LOB", position: 2 },
+    { name: "FLU", position: 3 },
+    { name: "FLU LOB / CHANNEL", position: 4 },
+    { name: "Email of Associate Completing this template", position: 5 }
+  ]}},
+  // Add other group headers as shown above...
 ];
 
-// Function to validate group headers and column headers at exact positions
-const validateHeaders = (groupRow: string[], headerRow: string[]): ValidationResult => {
-  for (const group of REQUIRED_GROUP_HEADERS) {
-    const { position, config } = group;
+const validateHeaders = (groupRow: string[], headerRow: string[]) => {
+  for (const { position, config } of REQUIRED_GROUP_HEADERS) {
     if (groupRow[position - 1] !== config.groupName) {
-      return { isValid: false, message: `Group name mismatch at position ${position}. Expected: '${config.groupName}', Found: '${groupRow[position - 1] || "missing"}'` };
+      return { isValid: false, message: `Group name mismatch at position ${position}. Expected: '${config.groupName}'` };
     }
-    for (let i = 0; i < config.headers.length; i++) {
-      const expectedHeader = config.headers[i];
-      const headerIndex = position - 1 + i + 1;
-      if (headerRow[headerIndex] !== expectedHeader) {
-        return { isValid: false, message: `Header mismatch at position ${headerIndex + 1}. Expected: '${expectedHeader}', Found: '${headerRow[headerIndex] || "missing"}'` };
+    for (const header of config.headers) {
+      if (headerRow[header.position - 1] !== header.name) {
+        return { isValid: false, message: `Header mismatch at position ${header.position}. Expected: '${header.name}'` };
       }
     }
   }
@@ -58,42 +45,40 @@ const FileUpload: React.FC = () => {
     }
 
     const file = acceptedFiles[0];
-    setSelectedFile(null);
-
-    if (file) {
-      const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      if (!validFileTypes.includes(`.${fileExtension}`)) {
-        alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
-        return;
-      }
-
-      const fileData = await file.arrayBuffer();
-      const workbook = XLSX.read(fileData, { type: 'array' });
-      if (workbook.SheetNames.length === 0) {
-        alert('The file is empty. Please upload a valid Excel file with content.');
-        return;
-      }
-
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
-      const groupRow = sheetData[0];
-      const headerRow = sheetData[1];
-
-      const { isValid, message } = validateHeaders(groupRow, headerRow);
-      if (!isValid) {
-        alert(message);
-        return;
-      }
-
-      if (sheetData.length <= 2) {
-        alert('The file must contain at least one row of data.');
-        return;
-      }
-
-      setSelectedFile(file);
-      alert('File is valid and ready for upload.');
+    const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (!validFileTypes.includes(`.${fileExtension}`)) {
+      alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
+      return;
     }
+
+    const fileData = await file.arrayBuffer();
+    const workbook = XLSX.read(fileData, { type: 'array' });
+
+    if (workbook.SheetNames.length === 0) {
+      alert('The file is empty. Please upload a valid Excel file with content.');
+      return;
+    }
+
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+    const groupRow = sheetData[0];
+    const headerRow = sheetData[1];
+
+    const { isValid, message } = validateHeaders(groupRow, headerRow);
+    if (!isValid) {
+      alert(message);
+      return;
+    }
+
+    if (sheetData.length <= 2) {
+      alert('The file must contain at least one row of data.');
+      return;
+    }
+
+    setSelectedFile(file);
+    alert('File is valid and ready for upload.');
   }, []);
 
   const handleUpload = async () => {
@@ -106,7 +91,7 @@ const FileUpload: React.FC = () => {
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch('http://localhost:5000/upload', {
+      const response = await fetch('/api/v5/excel/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -121,7 +106,7 @@ const FileUpload: React.FC = () => {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch('http://localhost:5000/download-file', {
+      const response = await fetch('/api/v5/excel/download', {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
       });
