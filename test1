@@ -14,45 +14,36 @@ interface ValidationResult {
   message: string;
 }
 
-const REQUIRED_GROUP_HEADERS: GroupHeaderConfig[] = [
-  { groupName: "LOB Details", headers: ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"] },
-  { groupName: "Data Type", headers: ["Relationship vs Transaction", "Transaction Type"] },
-  { groupName: "Transaction: Product", headers: ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"] },
-  { groupName: "Legal Entity", headers: ["Acting Legal Entity Name"] },
-  { groupName: "Data Storage", headers: ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"] },
-  { groupName: "Data Scanning", headers: ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."] },
-  { groupName: "Country Data Details", headers: ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?", "Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."] },
-  { groupName: "Data Lineage", headers: ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2", "Downstream AIT #3", "Downstream System Name #3", "Downstream AIT #4", "Downstream System Name #4", "Excluded from Sanctions Filter Direct Upstream Name"] },
-  { groupName: "Data Feed FLU Disposition", headers: ["Sanctions Filter Name", "Automated vs Manual", "GBB Identifier", "ACTION TYPE", "Update Reason Details", "GES Review Comments", "STATUS", "Remarks"] },
-  { groupName: "GES Use Only", headers: ["GES Review Comments"] }
+// Define the required group headers with specific index positions and their corresponding headers
+const REQUIRED_GROUP_HEADERS: { position: number; config: GroupHeaderConfig }[] = [
+  { position: 1, config: { groupName: "LOB Details", headers: ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"] } },
+  { position: 4, config: { groupName: "Data Type", headers: ["Relationship vs Transaction", "Transaction Type"] } },
+  { position: 7, config: { groupName: "Transaction: Product", headers: ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"] } },
+  { position: 11, config: { groupName: "Legal Entity", headers: ["Acting Legal Entity Name"] } },
+  { position: 12, config: { groupName: "SPI", headers: ["Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."] } },
+  { position: 16, config: { groupName: "Data Storage", headers: ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"] } },
+  { position: 22, config: { groupName: "Data Scanning", headers: ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."] } },
+  { position: 27, config: { groupName: "Country Data Details", headers: ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?"] } },
+  { position: 28, config: { groupName: "Data Lineage", headers: ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2"] } },
+  { position: 61, config: { groupName: "Data Feed FLU Disposition", headers: ["Sanctions Filter Name", "Automated vs Manual", "GBB Identifier", "ACTION TYPE", "Update Reason Details", "GES Review Comments", "STATUS", "Remarks"] } },
+  { position: 63, config: { groupName: "GES Use Only", headers: ["GES Review Comments"] } },
 ];
 
-// Validate both the group names in the first row and headers in the second row
+// Function to validate group headers and column headers at exact positions
 const validateHeaders = (groupRow: string[], headerRow: string[]): ValidationResult => {
-  let currentIndex = 0;
-
   for (const group of REQUIRED_GROUP_HEADERS) {
-    // Check group name in the first row
-    if (groupRow[currentIndex] !== group.groupName) {
-      return {
-        isValid: false,
-        message: `Group name mismatch at position ${currentIndex + 1}. Expected: '${group.groupName}', Found: '${groupRow[currentIndex] || "missing"}'`,
-      };
+    const { position, config } = group;
+    if (groupRow[position - 1] !== config.groupName) {
+      return { isValid: false, message: `Group name mismatch at position ${position}. Expected: '${config.groupName}', Found: '${groupRow[position - 1] || "missing"}'` };
     }
-
-    // Check headers in the second row for the current group
-    for (const expectedHeader of group.headers) {
-      currentIndex++;
-      if (headerRow[currentIndex] !== expectedHeader) {
-        return {
-          isValid: false,
-          message: `Header mismatch at position ${currentIndex + 1}. Expected: '${expectedHeader}', Found: '${headerRow[currentIndex] || "missing"}'`,
-        };
+    for (let i = 0; i < config.headers.length; i++) {
+      const expectedHeader = config.headers[i];
+      const headerIndex = position - 1 + i + 1;
+      if (headerRow[headerIndex] !== expectedHeader) {
+        return { isValid: false, message: `Header mismatch at position ${headerIndex + 1}. Expected: '${expectedHeader}', Found: '${headerRow[headerIndex] || "missing"}'` };
       }
     }
-    currentIndex++;
   }
-
   return { isValid: true, message: "File headers are valid and in correct order." };
 };
 
@@ -72,7 +63,6 @@ const FileUpload: React.FC = () => {
     if (file) {
       const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
-
       if (!validFileTypes.includes(`.${fileExtension}`)) {
         alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
         return;
@@ -80,7 +70,6 @@ const FileUpload: React.FC = () => {
 
       const fileData = await file.arrayBuffer();
       const workbook = XLSX.read(fileData, { type: 'array' });
-
       if (workbook.SheetNames.length === 0) {
         alert('The file is empty. Please upload a valid Excel file with content.');
         return;
@@ -88,8 +77,6 @@ const FileUpload: React.FC = () => {
 
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
-
-      // Group names should be in the first row, headers in the second row
       const groupRow = sheetData[0];
       const headerRow = sheetData[1];
 
@@ -126,7 +113,6 @@ const FileUpload: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to upload file');
-
       alert('File uploaded successfully!');
     } catch (error) {
       alert('Error uploading file. Please try again.');
@@ -141,7 +127,6 @@ const FileUpload: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to download file');
-
       const blob = await response.blob();
       const filename = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'downloaded_file.xlsx';
       saveAs(blob, filename);
@@ -162,17 +147,7 @@ const FileUpload: React.FC = () => {
 
   return (
     <div>
-      <Box
-        {...getRootProps()}
-        sx={{
-          border: '2px dashed #ccc',
-          padding: '20px',
-          textAlign: 'center',
-          cursor: 'pointer',
-          backgroundColor: isDragActive ? '#e0f7fa' : '#f9f9f9',
-          marginBottom: '16px',
-        }}
-      >
+      <Box {...getRootProps()} sx={{ border: '2px dashed #ccc', padding: '20px', textAlign: 'center', cursor: 'pointer', backgroundColor: isDragActive ? '#e0f7fa' : '#f9f9f9', marginBottom: '16px' }}>
         <input {...getInputProps()} />
         <Typography>{isDragActive ? "Drop the file here..." : "Drag & drop an Excel file here, or click to select one"}</Typography>
       </Box>
