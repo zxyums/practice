@@ -1,9 +1,186 @@
-const { getRootProps, getInputProps, isDragActive } = useDropzone({
-  onDrop,
-  accept: {
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-    'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
-    'application/vnd.ms-excel': ['.xls']
-  },
-  maxFiles: 1,
-});
+import React, { useCallback, useState } from 'react';
+import { Button, Typography, Box } from '@mui/material';
+import { useDropzone } from 'react-dropzone';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+
+interface GroupHeaderConfig {
+  groupName: string;
+  headers: string[];
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  message: string;
+}
+
+const REQUIRED_GROUP_HEADERS: GroupHeaderConfig[] = [
+  { groupName: "LOB Details", headers: ["INTERNAL USE ONLY", "LOB", "FLU", "FLU LOB / CHANNEL", "Email of Associate Completing this template"] },
+  { groupName: "Data Type", headers: ["Relationship vs Transaction", "Transaction Type"] },
+  { groupName: "Transaction: Product", headers: ["FLU Product Family Level 1", "FLU Product Class Level 2", "FLU Product Name Level 3"] },
+  { groupName: "Legal Entity", headers: ["Acting Legal Entity Name"] },
+  { groupName: "Data Storage", headers: ["Data stored in a system?", "AIT Number where data is stored", "AIT Name where data is stored", "Non-AIT Location where data is stored"] },
+  { groupName: "Data Scanning", headers: ["Is the data being scanned for economic sanctions?", "If Yes, by either the Data Storage or OTHER AIT, select the system receiving the data for scanning.", "If Yes, by OTHER System, Enter the AIT Name sending the data for scanning.", "If Yes, Manual upload, select the system receiving the data for scanning.", "If No, select the reason why data is not sent for sanctions scanning."] },
+  { groupName: "Country Data Details", headers: ["Is there movement of money?", "Country where the data is being stored", "What country originates the transactions OR owns the relationship?", "In what country will the transaction be processed?", "In what country will the transaction be settled?", "Provide 6-digit Single Process Inventory (SPI) that maintains the contracts for sending data for sanctions screening."] },
+  { groupName: "Data Lineage", headers: ["SOA AIT #", "SOA Name", "SOA Application Manager Delegate", "SOR AIT #", "SOR Name", "SOR Application Manager Delegate", "Downstream AIT #1", "Downstream System Name #1", "Downstream AIT #2", "Downstream System Name #2", "Downstream AIT #3", "Downstream System Name #3", "Downstream AIT #4", "Downstream System Name #4", "Excluded from Sanctions Filter Direct Upstream Name"] },
+  { groupName: "Data Feed FLU Disposition", headers: ["Sanctions Filter Name", "Automated vs Manual", "GBB Identifier", "ACTION TYPE", "Update Reason Details", "GES Review Comments", "STATUS", "Remarks"] },
+  { groupName: "GES Use Only", headers: ["GES Review Comments"] }
+];
+
+// Validate both the group names in the first row and headers in the second row
+const validateHeaders = (groupRow: string[], headerRow: string[]): ValidationResult => {
+  let currentIndex = 0;
+
+  for (const group of REQUIRED_GROUP_HEADERS) {
+    // Check group name in the first row
+    if (groupRow[currentIndex] !== group.groupName) {
+      return {
+        isValid: false,
+        message: `Group name mismatch at position ${currentIndex + 1}. Expected: '${group.groupName}', Found: '${groupRow[currentIndex] || "missing"}'`,
+      };
+    }
+
+    // Check headers in the second row for the current group
+    for (const expectedHeader of group.headers) {
+      currentIndex++;
+      if (headerRow[currentIndex] !== expectedHeader) {
+        return {
+          isValid: false,
+          message: `Header mismatch at position ${currentIndex + 1}. Expected: '${expectedHeader}', Found: '${headerRow[currentIndex] || "missing"}'`,
+        };
+      }
+    }
+    currentIndex++;
+  }
+
+  return { isValid: true, message: "File headers are valid and in correct order." };
+};
+
+const FileUpload: React.FC = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const token = 'YOUR_BEARER_TOKEN_HERE';
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 1) {
+      alert('Only one file is allowed. Please select a single file.');
+      return;
+    }
+
+    const file = acceptedFiles[0];
+    setSelectedFile(null);
+
+    if (file) {
+      const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+      if (!validFileTypes.includes(`.${fileExtension}`)) {
+        alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
+        return;
+      }
+
+      const fileData = await file.arrayBuffer();
+      const workbook = XLSX.read(fileData, { type: 'array' });
+
+      if (workbook.SheetNames.length === 0) {
+        alert('The file is empty. Please upload a valid Excel file with content.');
+        return;
+      }
+
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+
+      // Group names should be in the first row, headers in the second row
+      const groupRow = sheetData[0];
+      const headerRow = sheetData[1];
+
+      const { isValid, message } = validateHeaders(groupRow, headerRow);
+      if (!isValid) {
+        alert(message);
+        return;
+      }
+
+      if (sheetData.length <= 2) {
+        alert('The file must contain at least one row of data.');
+        return;
+      }
+
+      setSelectedFile(file);
+      alert('File is valid and ready for upload.');
+    }
+  }, []);
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a valid file first!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch('http://localhost:5000/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Failed to upload file');
+
+      alert('File uploaded successfully!');
+    } catch (error) {
+      alert('Error uploading file. Please try again.');
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/download-file', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to download file');
+
+      const blob = await response.blob();
+      const filename = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'downloaded_file.xlsx';
+      saveAs(blob, filename);
+    } catch (error) {
+      alert('Error downloading file. Please try again.');
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+      'application/vnd.ms-excel': ['.xls']
+    },
+    maxFiles: 1
+  });
+
+  return (
+    <div>
+      <Box
+        {...getRootProps()}
+        sx={{
+          border: '2px dashed #ccc',
+          padding: '20px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          backgroundColor: isDragActive ? '#e0f7fa' : '#f9f9f9',
+          marginBottom: '16px',
+        }}
+      >
+        <input {...getInputProps()} />
+        <Typography>{isDragActive ? "Drop the file here..." : "Drag & drop an Excel file here, or click to select one"}</Typography>
+      </Box>
+      {selectedFile && <Typography>Selected File: {selectedFile.name}</Typography>}
+      <Button variant="contained" color="secondary" onClick={handleUpload} disabled={!selectedFile}>Upload File</Button>
+      <Button variant="contained" color="primary" onClick={handleDownload}>Download File</Button>
+    </div>
+  );
+};
+
+export default FileUpload;
