@@ -83,6 +83,23 @@ const FileUpload: React.FC = () => {
       return;
     }
 
+    // Check for duplicate rows
+    const duplicates: number[] = [];
+    const seenRows = new Set<string>();
+    dataRows.forEach((row, index) => {
+      const rowString = JSON.stringify(row); // Convert row to string for comparison
+      if (seenRows.has(rowString)) {
+        duplicates.push(index + 3); // Adjust for zero-index and skip headers (first data row is index 2)
+      } else {
+        seenRows.add(rowString);
+      }
+    });
+
+    if (duplicates.length > 0) {
+      setValidationMessage(`Duplicate rows found at positions: ${duplicates.join(', ')}`);
+      return;
+    }
+
     setValidationMessage(null); // Clear validation message if all checks pass
     alert('File is valid and ready for upload.');
   }, []);
