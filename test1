@@ -1,87 +1,159 @@
-If the onDrop function is not triggering specifically for empty files but works with non-empty files, this might be due to react-dropzone’s internal filtering, as it sometimes ignores files with zero size even without explicit restrictions. Here’s an alternative approach to ensure that we catch empty files as well:
+import React, { useCallback, useState } from 'react';
+import { Button, Typography, Box } from '@mui/material';
+import { useDropzone } from 'react-dropzone';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
-	1.	Use onDropAccepted and onDropRejected callbacks: This will help in distinguishing between files that are accepted and those that might be rejected or not processed as expected.
-	2.	Check file size directly in the onDropAccepted callback: This allows us to handle empty files explicitly.
+interface GroupHeaderConfig {
+  groupName: string;
+  headers: { name: string; position: number }[];
+}
 
-Updated Code
+const REQUIRED_GROUP_HEADERS: { position: number; config: GroupHeaderConfig }[] = [
+  { position: 1, config: { groupName: "LOB Details", headers: [
+    { name: "INTERNAL USE ONLY", position: 1 },
+    { name: "LOB", position: 2 },
+    { name: "FLU", position: 3 },
+    { name: "FLU LOB / CHANNEL", position: 4 },
+    { name: "Email of Associate Completing this template", position: 5 }
+  ]}},
+  // Add other group headers as needed...
+];
 
-Use both onDropAccepted and onDropRejected callbacks in the useDropzone configuration:
-
-const { getRootProps, getInputProps, isDragActive } = useDropzone({
-  onDropAccepted: handleAcceptedFiles,
-  onDropRejected: handleRejectedFiles,
-  accept: {
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-    'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
-    'application/vnd.ms-excel': ['.xls']
-  },
-  maxFiles: 1,
-  maxSize: Infinity,
-});
-
-Then define handleAcceptedFiles and handleRejectedFiles as follows:
-
-const handleAcceptedFiles = useCallback(async (acceptedFiles: File[]) => {
-  console.log("Accepted files:", acceptedFiles);
-
-  if (acceptedFiles.length === 0) {
-    alert("No file was selected. Please select a file to upload.");
-    return;
+const validateHeaders = (groupRow: string[], headerRow: string[]) => {
+  for (const { position, config } of REQUIRED_GROUP_HEADERS) {
+    if (groupRow[position - 1] !== config.groupName) {
+      return { isValid: false, message: `Group name mismatch at position ${position}. Expected: '${config.groupName}'` };
+    }
+    for (const header of config.headers) {
+      if (headerRow[header.position - 1] !== header.name) {
+        return { isValid: false, message: `Header mismatch at position ${header.position}. Expected: '${header.name}'` };
+      }
+    }
   }
+  return { isValid: true, message: "File headers are valid and in correct order." };
+};
 
-  const file = acceptedFiles[0];
+const FileUpload: React.FC = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const token = 'YOUR_BEARER_TOKEN_HERE';
 
-  if (file.size === 0) {
-    alert("The file is empty. Please upload a file with content.");
-    return;
-  }
+  const handleAcceptedFiles = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    setSelectedFile(file); // Set the file immediately to display it to the user
 
-  // Continue with validation and processing logic
-  const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
-  const fileExtension = file.name.split('.').pop()?.toLowerCase();
-  if (!validFileTypes.includes(`.${fileExtension}`)) {
-    alert('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
-    return;
-  }
+    if (file.size === 0) {
+      setValidationMessage("The file is empty. Please upload a file with content.");
+      return;
+    }
 
-  const fileData = await file.arrayBuffer();
-  const workbook = XLSX.read(fileData, { type: 'array' });
-  if (workbook.SheetNames.length === 0) {
-    alert('The file is empty. Please upload a valid Excel file with content.');
-    return;
-  }
+    const validFileTypes = ['.xlsx', '.xlsm', '.xls'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (!validFileTypes.includes(`.${fileExtension}`)) {
+      setValidationMessage('Please upload a valid Excel file (.xlsx, .xlsm, .xls)');
+      return;
+    }
 
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
-  const groupRow = sheetData[0];
-  const headerRow = sheetData[1];
+    const fileData = await file.arrayBuffer();
+    const workbook = XLSX.read(fileData, { type: 'array' });
+    if (workbook.SheetNames.length === 0) {
+      setValidationMessage('The file is empty. Please upload a valid Excel file with content.');
+      return;
+    }
 
-  const { isValid, message } = validateHeaders(groupRow, headerRow);
-  if (!isValid) {
-    alert(message);
-    return;
-  }
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, blankrows: false }) as string[][];
 
-  if (sheetData.length <= 2) {
-    alert('The file must contain at least one row of data.');
-    return;
-  }
+    // Ensure group headers and main headers exist, then validate
+    const groupRow = sheetData[0];
+    const headerRow = sheetData[1];
 
-  setSelectedFile(file);
-  alert('File is valid and ready for upload.');
-}, []);
+    const { isValid, message } = validateHeaders(groupRow, headerRow);
+    if (!isValid) {
+      setValidationMessage(message);
+      return;
+    }
 
-const handleRejectedFiles = useCallback((rejectedFiles) => {
-  alert("The file type or size is not supported. Please upload a valid Excel file.");
-  console.log("Rejected files:", rejectedFiles);
-}, []);
+    // Slice off group header and header rows, then filter out any empty rows from the remaining data rows
+    const dataRows = sheetData.slice(2).filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
 
-Explanation
+    if (dataRows.length === 0) {
+      setValidationMessage('The file must contain at least one row of non-empty data.');
+      return;
+    }
 
-	1.	onDropAccepted (handleAcceptedFiles function): Only processes files that meet the accept criteria (Excel formats). This function will handle empty files by checking the file size explicitly.
-	2.	onDropRejected (handleRejectedFiles function): Provides feedback if the file type or size is incorrect.
-	3.	Direct File Size Check: In handleAcceptedFiles, we check if file.size === 0 and alert the user if the file is empty.
+    setValidationMessage(null); // Clear validation message if all checks pass
+    alert('File is valid and ready for upload.');
+  }, []);
 
-Summary
+  const handleRejectedFiles = useCallback(() => {
+    setValidationMessage("The file type or size is not supported. Please upload a valid Excel file.");
+  }, []);
 
-Using onDropAccepted and onDropRejected provides more control over accepted and rejected files. This setup should ensure that even if react-dropzone tries to filter out empty files, they will still be handled explicitly in the handleAcceptedFiles function. Let me know if this resolves the issue with empty files!
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a valid file first!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch('/api/v5/excel/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Failed to upload file');
+      alert('File uploaded successfully!');
+    } catch (error) {
+      alert('Error uploading file. Please try again.');
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch('/api/v5/excel/download', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to download file');
+      const blob = await response.blob();
+      const filename = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'downloaded_file.xlsx';
+      saveAs(blob, filename);
+    } catch (error) {
+      alert('Error downloading file. Please try again.');
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDropAccepted: handleAcceptedFiles,
+    onDropRejected: handleRejectedFiles,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+      'application/vnd.ms-excel': ['.xls']
+    },
+    maxFiles: 1,
+    maxSize: Infinity,
+  });
+
+  return (
+    <div>
+      <Box {...getRootProps()} sx={{ border: '2px dashed #ccc', padding: '20px', textAlign: 'center', cursor: 'pointer', backgroundColor: isDragActive ? '#e0f7fa' : '#f9f9f9', marginBottom: '16px' }}>
+        <input {...getInputProps()} />
+        <Typography>{isDragActive ? "Drop the file here..." : "Drag & drop an Excel file here, or click to select one"}</Typography>
+      </Box>
+      {selectedFile && <Typography>Selected File: {selectedFile.name}</Typography>}
+      {validationMessage && <Typography color="error">{validationMessage}</Typography>}
+      <Button variant="contained" color="secondary" onClick={handleUpload} disabled={!selectedFile}>Upload File</Button>
+      <Button variant="contained" color="primary" onClick={handleDownload}>Download File</Button>
+    </div>
+  );
+};
+
+export default FileUpload;
