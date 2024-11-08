@@ -1,124 +1,33 @@
-import React, { useState } from "react";
-import { Box, Step, StepButton, Stepper, Typography } from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import _ from "lodash";
+import isEqual from 'lodash.isequal'; // Install this using `npm install lodash.isequal`
 
-const ProgressBar = ({ sections }) => {
-  // State to track visited and validation status
-  const [sectionStatus, setSectionStatus] = useState(
-    _.keyBy(
-      sections.map((section) => ({
-        id: section.id,
-        visited: false,
-        validation: undefined,
-      })),
-      "id"
-    )
-  );
+const handleSave = async () => {
+  const currentValues = methods.getValues();
+  const initialValues = methods.defaultValuesRef.current; // Default values from react-hook-form
 
-  // Utility function to update section state
-  const updateSectionStatus = (id, updates) => {
-    setSectionStatus((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        ...updates, // Merge updates (e.g., visited or validation)
-      },
-    }));
-  };
+  // Check if there are any changes by comparing currentValues and initialValues
+  const hasChanges = !isEqual(currentValues, initialValues);
 
-  // Handle section click
-  const handleSectionClick = (id) => {
-    updateSectionStatus(id, { visited: true }); // Mark section as visited
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  };
+  if (!hasChanges) {
+    setShowNoChangeAlerts(true);
+    setTimeout(() => setShowNoChangeAlerts(false), 3000);
+    console.log("No changes detected.");
+    return; // Exit without saving
+  }
 
-  // Function to render validation icons
-  const renderIcon = (validation) => {
-    if (validation === true)
-      return <CheckCircleIcon fontSize="small" sx={{ color: "blue", ml: 1 }} />;
-    if (validation === false)
-      return (
-        <WarningAmberIcon fontSize="small" sx={{ color: "orange", ml: 1 }} />
-      );
-    return null;
-  };
+  // Save logic if changes are detected
+  setShowSaveLoading(true);
+  try {
+    const savePayload = { ...currentValues };
+    await saveFormToServer(savePayload); // Example API call
+    console.log("Form saved successfully.");
+    setDraftStatus(false);
 
-  return (
-    <Box sx={{ width: "100%", mb: 4 }}>
-      {/* Progress Bar */}
-      <Stepper nonLinear activeStep={-1} alternativeLabel>
-        {sections.map((section) => {
-          const { visited, validation } = sectionStatus[section.id];
-
-          // Circle color logic
-          const circleColor =
-            validation === true
-              ? "blue"
-              : validation === false
-              ? "orange"
-              : visited
-              ? "blue"
-              : "gray";
-
-          // Label color matches the circle color
-          const labelColor = circleColor;
-
-          return (
-            <Step key={section.id}>
-              <StepButton
-                onClick={() => handleSectionClick(section.id)}
-                sx={{
-                  ".MuiStepLabel-label": { color: labelColor }, // Update label color
-                  ".MuiStepIcon-root": { color: circleColor }, // Update circle color
-                }}
-              >
-                {section.label}
-                {renderIcon(validation)}
-              </StepButton>
-            </Step>
-          );
-        })}
-      </Stepper>
-
-      {/* Content Sections */}
-      <Box sx={{ mt: 4 }}>
-        {sections.map((section) => (
-          <div
-            key={section.id}
-            id={section.id}
-            style={{
-              marginBottom: "100px",
-              padding: "20px",
-              border: "1px solid lightgray",
-            }}
-          >
-            <Typography variant="h6">{section.label}</Typography>
-            <Typography>
-              Content for {section.label}. Replace this with your actual content.
-            </Typography>
-
-            {/* Example: Update validation */}
-            <button
-              onClick={() =>
-                updateSectionStatus(section.id, { validation: true })
-              }
-            >
-              Mark Complete
-            </button>
-            <button
-              onClick={() =>
-                updateSectionStatus(section.id, { validation: false })
-              }
-            >
-              Mark Warning
-            </button>
-          </div>
-        ))}
-      </Box>
-    </Box>
-  );
+    // Optionally, update default values after a successful save
+    methods.reset(currentValues);
+  } catch (error) {
+    console.error("Failed to save the form:", error);
+    setErrorStatus(true);
+  } finally {
+    setShowSaveLoading(false);
+  }
 };
-
-export default ProgressBar;
