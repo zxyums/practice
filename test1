@@ -1,33 +1,109 @@
-import isEqual from 'lodash.isequal'; // Install this using `npm install lodash.isequal`
+import React, { useEffect } from "react";
+import { Alert, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
-const handleSave = async () => {
-  const currentValues = methods.getValues();
-  const initialValues = methods.defaultValuesRef.current; // Default values from react-hook-form
+export default function ClosableAlert({
+  open,
+  severity = "info",
+  message,
+  onClose,
+  autoClose = false, // Prop to enable auto-close
+  autoCloseTime = 3000, // Time (in ms) before auto-close
+}) {
+  useEffect(() => {
+    let timer;
+    if (open && autoClose) {
+      timer = setTimeout(() => {
+        onClose();
+      }, autoCloseTime);
+    }
+    return () => clearTimeout(timer); // Cleanup timer on unmount or if open changes
+  }, [open, autoClose, autoCloseTime, onClose]);
 
-  // Check if there are any changes by comparing currentValues and initialValues
-  const hasChanges = !isEqual(currentValues, initialValues);
+  if (!open) return null;
 
-  if (!hasChanges) {
-    setShowNoChangeAlerts(true);
-    setTimeout(() => setShowNoChangeAlerts(false), 3000);
-    console.log("No changes detected.");
-    return; // Exit without saving
-  }
+  return (
+    <Alert
+      severity={severity}
+      action={
+        <IconButton
+          aria-label="close"
+          color="inherit"
+          size="small"
+          onClick={onClose}
+        >
+          <CloseIcon fontSize="inherit" />
+        </IconButton>
+      }
+    >
+      {message}
+    </Alert>
+  );
+}
 
-  // Save logic if changes are detected
-  setShowSaveLoading(true);
-  try {
-    const savePayload = { ...currentValues };
-    await saveFormToServer(savePayload); // Example API call
-    console.log("Form saved successfully.");
-    setDraftStatus(false);
 
-    // Optionally, update default values after a successful save
-    methods.reset(currentValues);
-  } catch (error) {
-    console.error("Failed to save the form:", error);
-    setErrorStatus(true);
-  } finally {
-    setShowSaveLoading(false);
-  }
+import React, { useState } from "react";
+import ClosableAlert from "./ClosableAlert";
+
+export default function App() {
+  const [alert, setAlert] = useState({
+    open: false,
+    severity: "info",
+    message: "",
+    autoClose: false, // Toggle auto-close
+  });
+
+  const handleApiCall = async () => {
+    try {
+      // Simulate an API call
+      const response = await fakeApiCall();
+      setAlert({
+        open: true,
+        severity: "success",
+        message: "API call was successful!",
+        autoClose: true, // Enable auto-close
+      });
+    } catch (error) {
+      setAlert({
+        open: true,
+        severity: "error",
+        message: "API call failed. Please try again!",
+        autoClose: true, // Enable auto-close
+      });
+    }
+  };
+
+  const closeAlert = () => {
+    setAlert((prev) => ({ ...prev, open: false }));
+  };
+
+  return (
+    <div>
+      <button onClick={handleApiCall}>Make API Call</button>
+
+      {/* Display the alert */}
+      <ClosableAlert
+        open={alert.open}
+        severity={alert.severity}
+        message={alert.message}
+        onClose={closeAlert}
+        autoClose={alert.autoClose}
+      />
+    </div>
+  );
+}
+
+// Simulated API call for demonstration
+const fakeApiCall = () => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      Math.random() > 0.5 ? resolve("Success") : reject("Error");
+    }, 1000);
+  });
 };
+
+
+
+
+
+
