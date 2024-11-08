@@ -1,67 +1,112 @@
+import React, { useState } from "react";
+import { Box, Step, StepButton, Stepper, Typography } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import _ from "lodash";
 
-import React from 'react';
-import Alert from '@mui/material/Alert';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
+const ProgressBar = ({ sections }) => {
+  // Initialize state with lodash
+  const [sectionStatus, setSectionStatus] = useState(
+    _.keyBy(
+      sections.map((section) => ({
+        id: section.id,
+        visited: false,
+        validation: undefined,
+      })),
+      "id"
+    )
+  );
 
-const AlertMessage = ({ severity, message, onClose, sx }) => {
+  // Utility: Update specific section state
+  const updateSectionStatus = (id, updates) => {
+    setSectionStatus((prev) =>
+      _.merge({}, prev, { [id]: updates }) // Merge updates immutably
+    );
+  };
+
+  // Handle section click
+  const handleSectionClick = (id) => {
+    updateSectionStatus(id, { visited: true });
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Render icons based on validation state
+  const renderIcon = (validation) => {
+    if (validation === true)
+      return <CheckCircleIcon fontSize="small" sx={{ color: "blue", ml: 1 }} />;
+    if (validation === false)
+      return (
+        <WarningAmberIcon fontSize="small" sx={{ color: "orange", ml: 1 }} />
+      );
+    return null;
+  };
+
   return (
-    <Alert
-      variant="filled"
-      severity={severity}
-      action={
-        <IconButton
-          aria-label="close"
-          color="inherit"
-          size="small"
-          onClick={() => {
-            onClose(false);
-          }}
-        >
-          <CloseIcon fontSize="inherit" />
-        </IconButton>
-      }
-      sx={sx}
-    >
-      {message}
-    </Alert>
+    <Box sx={{ width: "100%", mb: 4 }}>
+      {/* Progress Bar */}
+      <Stepper nonLinear activeStep={-1} alternativeLabel>
+        {sections.map((section) => {
+          const { validation } = sectionStatus[section.id];
+          const color =
+            validation === true
+              ? "blue"
+              : validation === false
+              ? "orange"
+              : "gray";
+
+          return (
+            <Step key={section.id}>
+              <StepButton
+                onClick={() => handleSectionClick(section.id)}
+                sx={{
+                  "& .MuiStepLabel-root": { color },
+                }}
+              >
+                {section.label}
+                {renderIcon(validation)}
+              </StepButton>
+            </Step>
+          );
+        })}
+      </Stepper>
+
+      {/* Content Sections */}
+      <Box sx={{ mt: 4 }}>
+        {sections.map((section) => (
+          <div
+            key={section.id}
+            id={section.id}
+            style={{
+              marginBottom: "100px",
+              padding: "20px",
+              border: "1px solid lightgray",
+            }}
+          >
+            <Typography variant="h6">{section.label}</Typography>
+            <Typography>
+              Content for {section.label}. Replace this with your actual content.
+            </Typography>
+
+            {/* Example: Update validation */}
+            <button
+              onClick={() =>
+                updateSectionStatus(section.id, { validation: true })
+              }
+            >
+              Mark Complete
+            </button>
+            <button
+              onClick={() =>
+                updateSectionStatus(section.id, { validation: false })
+              }
+            >
+              Mark Warning
+            </button>
+          </div>
+        ))}
+      </Box>
+    </Box>
   );
 };
 
-export default AlertMessage;
-
-
-
-
-import React, { useState } from 'react';
-import AlertMessage from './AlertMessage';
-
-const ParentComponent = () => {
-  const [showAlert, setShowAlert] = useState(true);
-
-  return (
-    <div>
-      {showAlert && (
-        <AlertMessage
-          severity="warning"
-          message="This is an alert message"
-          onClose={setShowAlert}
-          sx={{ mb: 2 }}
-        />
-      )}
-    </div>
-  );
-};
-
-export default ParentComponent;
-
-
-
-
-
-
-
-
-
-
-
+export default ProgressBar;
