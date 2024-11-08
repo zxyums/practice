@@ -49,11 +49,11 @@ const ProgressBar = ({ sections }) => {
     <Box sx={{ width: "100%", mb: 4 }}>
       {/* Progress Bar */}
       <Stepper nonLinear activeStep={-1} alternativeLabel>
-        {sections.map((section, index) => {
+        {sections.map((section) => {
           const { visited, validation } = sectionStatus[section.id];
 
-          // Color logic for the circle and label
-          const color =
+          // Circle color logic
+          const circleColor =
             validation === true
               ? "blue"
               : validation === false
@@ -62,13 +62,16 @@ const ProgressBar = ({ sections }) => {
               ? "blue"
               : "gray";
 
+          // Label color matches the circle color
+          const labelColor = circleColor;
+
           return (
             <Step key={section.id}>
               <StepButton
                 onClick={() => handleSectionClick(section.id)}
                 sx={{
-                  ".MuiStepLabel-label": { color }, // Label color
-                  ".MuiStepIcon-root": { color }, // Circle color
+                  ".MuiStepLabel-label": { color: labelColor }, // Update label color
+                  ".MuiStepIcon-root": { color: circleColor }, // Update circle color
                 }}
               >
                 {section.label}
