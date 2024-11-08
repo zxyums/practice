@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Box, Step, StepButton, Stepper, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -6,7 +5,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import _ from "lodash";
 
 const ProgressBar = ({ sections }) => {
-  // Initialize state with Lodash
+  // State to track visited and validation status
   const [sectionStatus, setSectionStatus] = useState(
     _.keyBy(
       sections.map((section) => ({
@@ -18,24 +17,24 @@ const ProgressBar = ({ sections }) => {
     )
   );
 
-  // Utility: Update specific section state
+  // Utility function to update section state
   const updateSectionStatus = (id, updates) => {
     setSectionStatus((prev) => ({
       ...prev,
       [id]: {
         ...prev[id],
-        ...updates, // Update visited or validation
+        ...updates, // Merge updates (e.g., visited or validation)
       },
     }));
   };
 
   // Handle section click
   const handleSectionClick = (id) => {
-    updateSectionStatus(id, { visited: true }); // Mark as visited
+    updateSectionStatus(id, { visited: true }); // Mark section as visited
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Render icons based on validation state
+  // Function to render validation icons
   const renderIcon = (validation) => {
     if (validation === true)
       return <CheckCircleIcon fontSize="small" sx={{ color: "blue", ml: 1 }} />;
@@ -53,7 +52,7 @@ const ProgressBar = ({ sections }) => {
         {sections.map((section) => {
           const { visited, validation } = sectionStatus[section.id];
 
-          // Determine the color logic
+          // Color logic: visited, validation, or unvisited
           const color =
             validation === true
               ? "blue"
@@ -68,7 +67,7 @@ const ProgressBar = ({ sections }) => {
               <StepButton
                 onClick={() => handleSectionClick(section.id)}
                 sx={{
-                  "& .MuiStepLabel-root": { color }, // Update the color dynamically
+                  ".MuiStepLabel-label": { color }, // Correctly update label color
                 }}
               >
                 {section.label}
