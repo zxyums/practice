@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Box, Step, StepButton, Stepper, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -19,14 +20,18 @@ const ProgressBar = ({ sections }) => {
 
   // Utility: Update specific section state
   const updateSectionStatus = (id, updates) => {
-    setSectionStatus((prev) =>
-      _.merge({}, prev, { [id]: updates }) // Merge updates immutably
-    );
+    setSectionStatus((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        ...updates, // Update visited or validation
+      },
+    }));
   };
 
   // Handle section click
   const handleSectionClick = (id) => {
-    updateSectionStatus(id, { visited: true });
+    updateSectionStatus(id, { visited: true }); // Mark as visited
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -63,7 +68,7 @@ const ProgressBar = ({ sections }) => {
               <StepButton
                 onClick={() => handleSectionClick(section.id)}
                 sx={{
-                  "& .MuiStepLabel-root": { color },
+                  "& .MuiStepLabel-root": { color }, // Update the color dynamically
                 }}
               >
                 {section.label}
