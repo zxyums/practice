@@ -3,34 +3,41 @@
   multiline
   fullWidth
   rows={4} // Minimum visible rows
-  maxRows={10} // Maximum rows before scrolling
+  maxRows={10} // Maximum visible rows before scrolling
   placeholder="Enter your comments"
   InputProps={{
     style: {
-      height: "auto", // Auto height for dynamic resizing
-      overflowY: "auto", // Add vertical scrolling for overflow
-      wordBreak: "break-word", // Break long words to prevent overflow
-      overflowWrap: "break-word", // Ensure text wraps properly
+      height: "auto", // Allow dynamic height adjustment
+      maxHeight: "200px", // Constrain the maximum height
+      overflowY: "auto", // Add vertical scrolling
+      overflowX: "hidden", // Prevent horizontal scrolling
+      wordBreak: "break-word", // Break long words into the next line
+      whiteSpace: "pre-wrap", // Preserve spaces and line breaks
     },
   }}
   sx={{
     "& .MuiOutlinedInput-root": {
-      alignItems: "flex-start", // Align text at the top
+      alignItems: "flex-start", // Align text to the top
+      height: "auto", // Ensure the container grows dynamically
       "& textarea": {
-        height: "auto", // Dynamic height adjustment
-        maxHeight: "200px", // Constrain the maximum height
-        overflowY: "auto", // Enable vertical scrolling for overflow
-        resize: "none", // Prevent manual resizing by the user
+        height: "auto", // Allow the textarea to resize automatically
+        maxHeight: "200px", // Constrain maximum height of textarea
+        overflowY: "auto", // Enable vertical scrolling for overflowing content
+        overflowX: "hidden", // Prevent horizontal scrolling
+        resize: "none", // Disable manual resizing
+        wordBreak: "break-word", // Ensure long words wrap correctly
+        whiteSpace: "pre-wrap", // Preserve spaces and line breaks
       },
       "& fieldset": {
         borderColor: "gray", // Default border color
+        borderWidth: "1px", // Ensure uniform border width
       },
       "&:hover fieldset": {
         borderColor: "black", // Hover border color
       },
       "&.Mui-focused fieldset": {
         borderColor: "blue", // Focus border color
-        borderWidth: "2px", // Thickness of the focus border
+        borderWidth: "2px", // Slightly thicker border on focus
       },
     },
   }}
