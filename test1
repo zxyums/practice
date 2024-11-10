@@ -4,31 +4,34 @@
   fullWidth
   rows={4} // Minimum visible rows
   maxRows={10} // Maximum rows before scrolling
-  placeholder="Enter text here"
+  placeholder="Enter your comments"
+  InputProps={{
+    style: {
+      height: "auto", // Auto height for dynamic resizing
+      overflowY: "auto", // Add vertical scrolling for overflow
+      wordBreak: "break-word", // Break long words to prevent overflow
+      overflowWrap: "break-word", // Ensure text wraps properly
+    },
+  }}
   sx={{
     "& .MuiOutlinedInput-root": {
       alignItems: "flex-start", // Align text at the top
       "& textarea": {
         height: "auto", // Dynamic height adjustment
-        maxHeight: "200px", // Prevent infinite growth
-        overflowY: "auto", // Allow scrolling for overflow
+        maxHeight: "200px", // Constrain the maximum height
+        overflowY: "auto", // Enable vertical scrolling for overflow
         resize: "none", // Prevent manual resizing by the user
       },
       "& fieldset": {
-        borderColor: "gray", // Default border
+        borderColor: "gray", // Default border color
       },
       "&:hover fieldset": {
-        borderColor: "black", // Border on hover
+        borderColor: "black", // Hover border color
       },
       "&.Mui-focused fieldset": {
-        borderColor: "blue", // Focused border color
-        borderWidth: "2px", // Thickness of the blue highlight
+        borderColor: "blue", // Focus border color
+        borderWidth: "2px", // Thickness of the focus border
       },
-    },
-  }}
-  inputProps={{
-    style: {
-      caretColor: "black", // Ensure the cursor color is visible
     },
   }}
 />
