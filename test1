@@ -1,49 +1,123 @@
-<TextField
-  {...field}
-  multiline
-  fullWidth
-  rows={4} // Minimum visible rows
-  maxRows={10} // Maximum visible rows before internal scrolling
-  placeholder="Enter your comments"
-  InputProps={{
-    style: {
-      height: "auto", // Allow dynamic height adjustment
-      maxHeight: "200px", // Constrain maximum height of the text area
-      overflowY: "auto", // Add vertical scrolling for overflow
-      overflowX: "hidden", // Prevent horizontal scrolling
-      wordBreak: "break-word", // Break long words into the next line
-      whiteSpace: "pre-wrap", // Preserve spaces and line breaks
-    },
-  }}
-  sx={{
-    "& .MuiOutlinedInput-root": {
-      alignItems: "flex-start", // Align text to the top
-      height: "auto", // Allow the container to grow dynamically
-      "& textarea": {
-        height: "auto", // Allow the textarea to resize dynamically
-        maxHeight: "200px", // Constrain height to avoid excessive growth
-        overflowY: "auto", // Enable vertical scrolling
-        overflowX: "hidden", // Prevent horizontal scrolling
-        resize: "none", // Disable manual resizing
-        wordBreak: "break-word", // Ensure long words wrap correctly
-        whiteSpace: "pre-wrap", // Preserve line breaks and spaces
-      },
-      "& fieldset": {
-        borderColor: "gray", // Default border color
-        borderWidth: "1px", // Ensure uniform border thickness
-      },
-      "&:hover fieldset": {
-        borderColor: "black", // Hover border color
-        borderWidth: "1px", // Ensure hover styling for top border
-      },
-      "&.Mui-focused fieldset": {
-        borderColor: "blue", // Focus border color
-        borderWidth: "2px", // Slightly thicker focus border
-      },
-    },
-  }}
-  style={{
-    maxHeight: "250px", // Restrict overall height to enable browser scroll
-    overflowY: "auto", // Add browser scroll when text field exceeds screen
-  }}
-/>
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import '@testing-library/jest-dom/extend-expect';
+import FileUpload from "./FileUpload"; // Adjust the path based on your structure
+import { useSelector } from "react-redux";
+
+// Mock Redux state for accessToken
+jest.mock("react-redux", () => ({
+  useSelector: jest.fn(),
+}));
+
+describe("FileUpload Component Tests", () => {
+  beforeEach(() => {
+    useSelector.mockImplementation((callback) =>
+      callback({
+        userTokens: { accessToken: "mock-access-token" },
+      })
+    );
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("renders FileUpload component with initial UI", () => {
+    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+    
+    // Check for initial UI elements
+    expect(screen.getByText(/Drag files or choose file\(s\) to upload/i)).toBeInTheDocument();
+    expect(screen.getByText(/Max size: 100MB/i)).toBeInTheDocument();
+    expect(screen.getByText(/Supported formats: XLS, XLSX/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /browse files/i })).toBeDisabled();
+  });
+
+  test("displays error for unsupported file type", async () => {
+    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+
+    const file = new File(["dummy content"], "example.txt", { type: "text/plain" });
+    const fileInput = screen.getByTestId("file-input");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid file type/i)).toBeInTheDocument();
+    });
+  });
+
+  test("displays error for empty data in uploaded file", async () => {
+    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+
+    const file = new File([""], "example.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const fileInput = screen.getByTestId("file-input");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Empty data detected in file/i)).toBeInTheDocument();
+    });
+  });
+
+  test("successful file upload makes API call", async () => {
+    const mockSetLoader = jest.fn();
+    const mockSetCompleted = jest.fn();
+
+    // Mock fetch for API POST request
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+        headers: { get: () => "STATUS_200" },
+      })
+    );
+
+    render(<FileUpload setLoader={mockSetLoader} setCompleted={mockSetCompleted} />);
+
+    const file = new File(["mock data"], "example.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const fileInput = screen.getByTestId("file-input");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    const uploadButton = screen.getByRole("button", { name: /upload/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(mockSetLoader).toHaveBeenCalledWith(true);
+      expect(mockSetCompleted).toHaveBeenCalledWith(false);
+      expect(fetch).toHaveBeenCalledWith(expect.anything(), expect.anything());
+    });
+
+    global.fetch.mockClear();
+  });
+
+  test("handles API failure gracefully", async () => {
+    const mockSetLoader = jest.fn();
+    const mockSetCompleted = jest.fn();
+
+    // Mock fetch to simulate API failure
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: false,
+        headers: { get: () => "STATUS_500" },
+      })
+    );
+
+    render(<FileUpload setLoader={mockSetLoader} setCompleted={mockSetCompleted} />);
+
+    const file = new File(["mock data"], "example.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const fileInput = screen.getByTestId("file-input");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    const uploadButton = screen.getByRole("button", { name: /upload/i });
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Upload failed/i)).toBeInTheDocument();
+      expect(mockSetLoader).toHaveBeenCalledWith(false);
+      expect(mockSetCompleted).toHaveBeenCalledWith(false);
+    });
+
+    global.fetch.mockClear();
+  });
+});
