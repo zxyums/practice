@@ -1,131 +1,158 @@
 
-import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import '@testing-library/jest-dom/extend-expect';
-import FileUpload from "./FileUpload"; // Adjust the path based on your structure
-import { useSelector } from "react-redux";
+Here’s a full implementation of the CustomSelectField component that adds optional onChange functionality without breaking the existing code. This ensures backward compatibility by using the default field.onChange behavior when no custom onChange is provided.
 
-// Mock Redux
-jest.mock("react-redux", () => ({
-  ...jest.requireActual("react-redux"),
-  useSelector: jest.fn(),
-}));
+Full Component Code
 
-// Cast `global.fetch` as a Jest mock
-(global.fetch as jest.Mock) = jest.fn();
+import React, { useEffect } from "react";
+import {
+  FormHelperText,
+  InputAdornment,
+  MenuItem,
+  Select,
+  Tooltip,
+} from "@mui/material";
+import { FieldConfig } from "../types/formTypes";
+import CustomLabel from "./CustomLabel";
+import { useController, useFormContext } from "react-hook-form";
+import _ from "lodash";
+import { ArrowDropDownIcon } from "@mui/icons-material";
 
-describe("FileUpload Component Tests", () => {
-  beforeEach(() => {
-    // Mock Redux state for accessToken
-    (useSelector as jest.Mock).mockImplementation((callback) =>
-      callback({
-        userTokens: { accessToken: "mock-access-token" },
-      })
-    );
+type Props = {
+  control: any;
+  config: FieldConfig;
+  onChange?: (
+    event: React.ChangeEvent<{ value: unknown }>,
+    value: any
+  ) => void; // Optional custom onChange
+};
 
-    // Reset fetch mock
-    (global.fetch as jest.Mock).mockReset();
+const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
+  const { register, clearErrors } = useFormContext();
+  const { fieldState, field } = useController({
+    control,
+    name: config.name,
+    defaultValue: config.defaultValue || null,
+    rules: {
+      required: config.required
+        ? `${config.label} is required`
+        : false,
+    },
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  const { error } = fieldState;
 
-  test("renders FileUpload component with initial UI", () => {
-    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+  // Handle custom and default onChange logic
+  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    const selectedValue = event.target.value;
+    if (onChange) {
+      onChange(event, selectedValue); // Call the custom onChange if provided
+    }
+    field.onChange(selectedValue); // Default onChange behavior
+  };
 
-    // Check for UI elements
-    expect(screen.getByText(/Drag files or choose file\(s\) to upload/i)).toBeInTheDocument();
-    expect(screen.getByText(/Max size: 100MB/i)).toBeInTheDocument();
-    expect(screen.getByText(/Supported formats: XLS, XLSX/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /browse files/i })).toBeDisabled();
-  });
+  useEffect(() => {
+    if (field.value) {
+      clearErrors(config.name);
+    }
+  }, [clearErrors, config.name, field.value]);
 
-  test("displays error for unsupported file type", async () => {
-    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+  const options = _.orderBy(config.options, ["value"], ["asc"]);
 
-    const file = new File(["dummy content"], "example.txt", { type: "text/plain" });
-    const fileInput = screen.getByTestId("file-input"); // Ensure testId matches
+  return (
+    <div className="flexing">
+      <CustomLabel htmlFor={config.name} label={config.label} />
+      <Select
+        id={config.name}
+        value={field.value || ""}
+        {...register(config.name)}
+        onChange={handleOnChange} // Use the combined onChange handler
+        onBlur={field.onBlur}
+        displayEmpty
+        renderValue={(selected: string) =>
+          selected === undefined || selected === null ? (
+            <span style={{ color: "#999" }}>Select</span>
+          ) : (
+            config.options.find(
+              (data) => data.key === selected || data.value === selected
+            )?.label || selected
+          )
+        }
+        IconComponent={ArrowDropDownIcon}
+        inputProps={{
+          "data-testid": "custom_select",
+          "aria-controls": config.name,
+          "aria-label": config.label,
+        }}
+        style={{ minWidth: 200 }}
+      >
+        <MenuItem value={undefined} disabled>
+          Select
+        </MenuItem>
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.value}>
+            {option.label}
+          </MenuItem>
+        ))}
+      </Select>
+      {error && (
+        <FormHelperText style={{ color: "#D32F2F" }}>
+          {error?.message || config.helperText || ""}
+        </FormHelperText>
+      )}
+    </div>
+  );
+};
 
-    fireEvent.change(fileInput, { target: { files: [file] } });
+export default CustomSelectField;
 
-    await waitFor(() => {
-      expect(screen.getByText(/Invalid file type/i)).toBeInTheDocument();
-    });
-  });
+Key Features:
 
-  test("handles empty data in uploaded file", async () => {
-    render(<FileUpload setLoader={jest.fn()} setCompleted={jest.fn()} />);
+	1.	Optional onChange:
+	•	If onChange is passed as a prop, it is executed alongside the default field.onChange.
+	•	If onChange is not provided, the default behavior remains unchanged.
+	2.	Backward Compatible:
+	•	Existing functionality is preserved. The component works the same as before if no custom onChange is passed.
+	3.	Custom Label and Accessibility:
+	•	Supports a CustomLabel for consistent styling.
+	•	Provides aria-label and other accessibility features.
+	4.	Dynamic Options:
+	•	Dropdown options are sorted dynamically using lodash.
+	5.	Error Handling:
+	•	Displays error messages if validation fails.
 
-    const file = new File([""], "example.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const fileInput = screen.getByTestId("file-input");
+Usage Example
 
-    fireEvent.change(fileInput, { target: { files: [file] } });
+Default Behavior (No Custom onChange):
 
-    await waitFor(() => {
-      expect(screen.getByText(/Empty data detected in file/i)).toBeInTheDocument();
-    });
-  });
+<CustomSelectField
+  control={control}
+  config={{
+    name: "example",
+    label: "Example Dropdown",
+    options: [
+      { key: 1, value: "one", label: "One" },
+      { key: 2, value: "two", label: "Two" },
+    ],
+    required: true,
+  }}
+/>
 
-  test("successful file upload makes API call", async () => {
-    const mockSetLoader = jest.fn();
-    const mockSetCompleted = jest.fn();
+With Custom onChange:
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      headers: {
-        get: jest.fn(() => "STATUS_200"),
-      },
-    } as unknown as Response);
+<CustomSelectField
+  control={control}
+  config={{
+    name: "example",
+    label: "Example Dropdown",
+    options: [
+      { key: 1, value: "one", label: "One" },
+      { key: 2, value: "two", label: "Two" },
+    ],
+    required: true,
+  }}
+  onChange={(event, value) => {
+    console.log("Custom onChange Triggered:", value);
+  }}
+/>
 
-    render(<FileUpload setLoader={mockSetLoader} setCompleted={mockSetCompleted} />);
-
-    const file = new File(["mock data"], "example.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const fileInput = screen.getByTestId("file-input");
-
-    fireEvent.change(fileInput, { target: { files: [file] } });
-
-    const uploadButton = screen.getByRole("button", { name: /upload/i });
-    fireEvent.click(uploadButton);
-
-    await waitFor(() => {
-      expect(mockSetLoader).toHaveBeenCalledWith(true);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(mockSetCompleted).toHaveBeenCalledWith(false);
-    });
-  });
-
-  test("handles API failure gracefully", async () => {
-    const mockSetLoader = jest.fn();
-    const mockSetCompleted = jest.fn();
-
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      headers: {
-        get: jest.fn(() => "STATUS_500"),
-      },
-    } as unknown as Response);
-
-    render(<FileUpload setLoader={mockSetLoader} setCompleted={mockSetCompleted} />);
-
-    const file = new File(["mock data"], "example.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const fileInput = screen.getByTestId("file-input");
-
-    fireEvent.change(fileInput, { target: { files: [file] } });
-
-    const uploadButton = screen.getByRole("button", { name: /upload/i });
-    fireEvent.click(uploadButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Upload failed/i)).toBeInTheDocument();
-      expect(mockSetLoader).toHaveBeenCalledWith(false);
-      expect(mockSetCompleted).toHaveBeenCalledWith(false);
-    });
-  });
-});
+This approach ensures flexibility while keeping the code simple and extensible.
