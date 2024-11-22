@@ -1,16 +1,14 @@
 
-Here’s a full implementation of the CustomSelectField component that adds optional onChange functionality without breaking the existing code. This ensures backward compatibility by using the default field.onChange behavior when no custom onChange is provided.
-
-Full Component Code
-
-import React, { useEffect } from "react";
+import React, { useRef } from "react";
 import {
   FormHelperText,
   InputAdornment,
   MenuItem,
   Select,
   Tooltip,
+  SelectChangeEvent, // Import this type
 } from "@mui/material";
+import { FixedSizeList as List } from "react-window";
 import { FieldConfig } from "../types/formTypes";
 import CustomLabel from "./CustomLabel";
 import { useController, useFormContext } from "react-hook-form";
@@ -21,9 +19,9 @@ type Props = {
   control: any;
   config: FieldConfig;
   onChange?: (
-    event: React.ChangeEvent<{ value: unknown }>,
+    event: SelectChangeEvent,
     value: any
-  ) => void; // Optional custom onChange
+  ) => void; // Updated type for onChange
 };
 
 const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
@@ -41,22 +39,30 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const { error } = fieldState;
 
-  // Handle custom and default onChange logic
-  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+  const handleOnChange = (event: SelectChangeEvent) => {
     const selectedValue = event.target.value;
     if (onChange) {
-      onChange(event, selectedValue); // Call the custom onChange if provided
+      onChange(event, selectedValue); // Custom onChange
     }
-    field.onChange(selectedValue); // Default onChange behavior
+    field.onChange(selectedValue); // Default onChange
   };
 
-  useEffect(() => {
-    if (field.value) {
-      clearErrors(config.name);
-    }
-  }, [clearErrors, config.name, field.value]);
-
+  const dropdownRef = useRef(null);
   const options = _.orderBy(config.options, ["value"], ["asc"]);
+
+  const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const option = options[index];
+    return (
+      <MenuItem
+        key={option.key}
+        value={option.value}
+        style={style}
+        onClick={() => handleOnChange({ target: { value: option.value } } as any)}
+      >
+        {option.label}
+      </MenuItem>
+    );
+  };
 
   return (
     <div className="flexing">
@@ -65,34 +71,35 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         id={config.name}
         value={field.value || ""}
         {...register(config.name)}
-        onChange={handleOnChange} // Use the combined onChange handler
+        onChange={handleOnChange} // Fixed type here
         onBlur={field.onBlur}
         displayEmpty
-        renderValue={(selected: string) =>
-          selected === undefined || selected === null ? (
-            <span style={{ color: "#999" }}>Select</span>
-          ) : (
-            config.options.find(
-              (data) => data.key === selected || data.value === selected
-            )?.label || selected
-          )
-        }
         IconComponent={ArrowDropDownIcon}
         inputProps={{
           "data-testid": "custom_select",
           "aria-controls": config.name,
           "aria-label": config.label,
         }}
-        style={{ minWidth: 200 }}
+        MenuProps={{
+          PaperProps: {
+            style: {
+              maxHeight: 300, // Dropdown height
+            },
+          },
+        }}
+        ref={dropdownRef}
       >
         <MenuItem value={undefined} disabled>
           Select
         </MenuItem>
-        {options.map((option) => (
-          <MenuItem key={option.key} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
+        <List
+          height={300} // Height of dropdown
+          itemCount={options.length}
+          itemSize={35} // Height of each option
+          width="100%"
+        >
+          {renderRow}
+        </List>
       </Select>
       {error && (
         <FormHelperText style={{ color: "#D32F2F" }}>
@@ -104,55 +111,3 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 };
 
 export default CustomSelectField;
-
-Key Features:
-
-	1.	Optional onChange:
-	•	If onChange is passed as a prop, it is executed alongside the default field.onChange.
-	•	If onChange is not provided, the default behavior remains unchanged.
-	2.	Backward Compatible:
-	•	Existing functionality is preserved. The component works the same as before if no custom onChange is passed.
-	3.	Custom Label and Accessibility:
-	•	Supports a CustomLabel for consistent styling.
-	•	Provides aria-label and other accessibility features.
-	4.	Dynamic Options:
-	•	Dropdown options are sorted dynamically using lodash.
-	5.	Error Handling:
-	•	Displays error messages if validation fails.
-
-Usage Example
-
-Default Behavior (No Custom onChange):
-
-<CustomSelectField
-  control={control}
-  config={{
-    name: "example",
-    label: "Example Dropdown",
-    options: [
-      { key: 1, value: "one", label: "One" },
-      { key: 2, value: "two", label: "Two" },
-    ],
-    required: true,
-  }}
-/>
-
-With Custom onChange:
-
-<CustomSelectField
-  control={control}
-  config={{
-    name: "example",
-    label: "Example Dropdown",
-    options: [
-      { key: 1, value: "one", label: "One" },
-      { key: 2, value: "two", label: "Two" },
-    ],
-    required: true,
-  }}
-  onChange={(event, value) => {
-    console.log("Custom onChange Triggered:", value);
-  }}
-/>
-
-This approach ensures flexibility while keeping the code simple and extensible.
