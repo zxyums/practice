@@ -1,27 +1,30 @@
 
-import React, { useRef } from "react";
+import React, { useMemo } from "react";
 import {
   FormHelperText,
-  InputAdornment,
   MenuItem,
   Select,
   Tooltip,
-  SelectChangeEvent, // Import this type
 } from "@mui/material";
-import { FixedSizeList as List } from "react-window";
-import { FieldConfig } from "../types/formTypes";
-import CustomLabel from "./CustomLabel";
+import { FixedSizeList } from "react-window";
 import { useController, useFormContext } from "react-hook-form";
-import _ from "lodash";
 import { ArrowDropDownIcon } from "@mui/icons-material";
+import _ from "lodash";
+import CustomLabel from "./CustomLabel";
 
 type Props = {
   control: any;
-  config: FieldConfig;
-  onChange?: (
-    event: SelectChangeEvent,
-    value: any
-  ) => void; // Updated type for onChange
+  config: {
+    name: string;
+    label: string;
+    required?: boolean;
+    options: { key: any; value: any; label: string }[];
+    defaultValue?: any;
+    toolTips?: string; // Tooltip for the dropdown
+    helperText?: string;
+    readOnly?: boolean;
+  };
+  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void; // Optional custom onChange
 };
 
 const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
@@ -29,7 +32,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const { fieldState, field } = useController({
     control,
     name: config.name,
-    defaultValue: config.defaultValue || null,
+    defaultValue: config.defaultValue || "",
     rules: {
       required: config.required
         ? `${config.label} is required`
@@ -39,72 +42,108 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const { error } = fieldState;
 
-  const handleOnChange = (event: SelectChangeEvent) => {
+  // Handle onChange event
+  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     const selectedValue = event.target.value;
     if (onChange) {
-      onChange(event, selectedValue); // Custom onChange
+      onChange(event, selectedValue); // Trigger custom onChange if provided
     }
-    field.onChange(selectedValue); // Default onChange
+    field.onChange(selectedValue); // Default behavior
+    clearErrors(config.name); // Clear errors
   };
 
-  const dropdownRef = useRef(null);
-  const options = _.orderBy(config.options, ["value"], ["asc"]);
+  // Render selected value
+  const renderValue = (selected: string) => {
+    if (!selected) {
+      return <span style={{ color: "#999" }}>Select</span>;
+    }
 
+    const selectedOption = config.options.find(
+      (option) => option.value === selected
+    );
+
+    return selectedOption?.label || selected;
+  };
+
+  // Sort options dynamically and memoize
+  const sortedOptions = useMemo(
+    () => _.orderBy(config.options, ["value"], ["asc"]),
+    [config.options]
+  );
+
+  const ITEM_HEIGHT = 40;
+  const DROPDOWN_HEIGHT = 300;
+
+  // Render a single row in the virtualized list
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const option = options[index];
+    const option = sortedOptions[index];
     return (
       <MenuItem
         key={option.key}
         value={option.value}
         style={style}
-        onClick={() => handleOnChange({ target: { value: option.value } } as any)}
       >
         {option.label}
       </MenuItem>
     );
   };
 
+  // Inject options into Material-UI's Menu component
+  const VirtualizedList = React.forwardRef((props, ref) => (
+    <FixedSizeList
+      ref={ref}
+      height={DROPDOWN_HEIGHT}
+      width="100%"
+      itemSize={ITEM_HEIGHT}
+      itemCount={sortedOptions.length}
+      {...props}
+    >
+      {renderRow}
+    </FixedSizeList>
+  ));
+
+  const IconComponent = (props: any) => (
+    <Tooltip title={config.toolTips || ""}>
+      <ArrowDropDownIcon {...props} />
+    </Tooltip>
+  );
+
   return (
-    <div className="flexing">
+    <div>
       <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={field.value || ""}
+        value={field.value || config.defaultValue || ""} // Default to config.defaultValue
         {...register(config.name)}
-        onChange={handleOnChange} // Fixed type here
-        onBlur={field.onBlur}
+        onChange={handleOnChange} // Correctly handle onChange
         displayEmpty
-        IconComponent={ArrowDropDownIcon}
+        renderValue={renderValue}
+        IconComponent={IconComponent}
+        MenuProps={{
+          PaperProps: {
+            style: { maxHeight: DROPDOWN_HEIGHT, width: "auto" },
+          },
+          MenuListProps: {
+            component: VirtualizedList, // Inject VirtualizedList into the Menu
+          },
+        }}
         inputProps={{
           "data-testid": "custom_select",
           "aria-controls": config.name,
           "aria-label": config.label,
         }}
-        MenuProps={{
-          PaperProps: {
-            style: {
-              maxHeight: 300, // Dropdown height
-            },
-          },
-        }}
-        ref={dropdownRef}
       >
-        <MenuItem value={undefined} disabled>
-          Select
+        <MenuItem value="" disabled>
+          <span style={{ color: "#999" }}>Select</span>
         </MenuItem>
-        <List
-          height={300} // Height of dropdown
-          itemCount={options.length}
-          itemSize={35} // Height of each option
-          width="100%"
-        >
-          {renderRow}
-        </List>
       </Select>
       {error && (
         <FormHelperText style={{ color: "#D32F2F" }}>
           {error?.message || config.helperText || ""}
         </FormHelperText>
+      )}
+      {!error && config.helperText && (
+        <FormHelperText>{config.helperText}</FormHelperText>
       )}
     </div>
   );
