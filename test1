@@ -8,11 +8,10 @@ import {
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
-import Info from "@mui/icons-material/Info";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import styles from "../../shared/styles"; // Updated import
 import { FieldConfig } from "../../types/formTypes"; // Updated import
-import { FixedSizeList, FixedSizeListProps } from "react-window";
+import { FixedSizeList } from "react-window";
 
 type Props = {
   control: any;
@@ -67,49 +66,35 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
-  const listRef = useRef<FixedSizeList<any>>(null); // Ref for FixedSizeList
-
-  const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const option = sortedOptions[index];
-    if (!option) return null; // Safeguard against invalid indices
-    return (
-      <MenuItem
-        key={option.key}
-        value={option.value}
-        style={style}
-        onClick={() =>
-          handleOnChange({
-            target: { value: option.value },
-          } as React.ChangeEvent<{ value: unknown }>)
-        }
-      >
-        {option.label}
-      </MenuItem>
-    );
-  };
-
-  const VirtualizedList = React.forwardRef<HTMLDivElement, FixedSizeListProps<any>>(
-    (props, ref) => (
-      <FixedSizeList
-        ref={(instance) => {
-          listRef.current = instance; // Assign the instance to ref
-          if (typeof ref === "function") {
-            ref(instance);
-          } else if (ref) {
-            (ref as React.MutableRefObject<FixedSizeList<any> | null>).current =
-              instance;
-          }
-        }}
-        height={DROPDOWN_HEIGHT}
-        width="100%"
-        itemSize={ITEM_HEIGHT}
-        itemCount={sortedOptions.length}
-        {...props}
-      >
-        {renderRow}
-      </FixedSizeList>
-    )
-  );
+  const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
+    <FixedSizeList
+      height={DROPDOWN_HEIGHT}
+      width="100%"
+      itemSize={ITEM_HEIGHT}
+      itemCount={sortedOptions.length}
+      outerRef={ref as React.Ref<HTMLDivElement>} // Correctly forward the outerRef
+      {...props}
+    >
+      {({ index, style }) => {
+        const option = sortedOptions[index];
+        if (!option) return null; // Safeguard against invalid indices
+        return (
+          <MenuItem
+            key={option.key}
+            value={option.value}
+            style={style}
+            onClick={() =>
+              handleOnChange({
+                target: { value: option.value },
+              } as React.ChangeEvent<{ value: unknown }>)
+            }
+          >
+            {option.label}
+          </MenuItem>
+        );
+      }}
+    </FixedSizeList>
+  ));
 
   const IconComponent = (props: any) => (
     <Tooltip title={config.toolTips || ""}>
