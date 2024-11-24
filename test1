@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   FormHelperText,
-  InputAdornment,
   MenuItem,
   Select,
   Tooltip,
@@ -13,7 +12,7 @@ import Info from "@mui/icons-material/Info";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import styles from "../../shared/styles"; // Updated import
 import { FieldConfig } from "../../types/formTypes"; // Updated import
-import { FixedSizeList } from "react-window";
+import { FixedSizeList, FixedSizeListProps } from "react-window";
 
 type Props = {
   control: any;
@@ -42,12 +41,10 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     }
   }, [field.value, clearErrors, config.name]);
 
-  const handleOnChange = (event: any) => {
-    const selectedValue = event.target.value;
+  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    const selectedValue = event.target.value as string;
     if (onChange) {
       onChange(event, selectedValue); // Call separate onChange prop if provided
-    } else if (config.onChange) {
-      config.onChange(event, selectedValue); // Call config-provided onChange if defined
     }
     field.onChange(selectedValue); // Default behavior
   };
@@ -70,7 +67,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
-  const listRef = useRef<any>(null); // Ref for FixedSizeList
+  const listRef = useRef<FixedSizeList<any>>(null); // Ref for FixedSizeList
 
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const option = sortedOptions[index];
@@ -91,25 +88,28 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     );
   };
 
-  const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-    <FixedSizeList
-      ref={(instance) => {
-        listRef.current = instance; // Assign the instance to ref
-        if (typeof ref === "function") {
-          ref(instance);
-        } else if (ref) {
-          ref.current = instance;
-        }
-      }}
-      height={DROPDOWN_HEIGHT}
-      width="100%"
-      itemSize={ITEM_HEIGHT}
-      itemCount={sortedOptions.length}
-      {...props}
-    >
-      {renderRow}
-    </FixedSizeList>
-  ));
+  const VirtualizedList = React.forwardRef<HTMLDivElement, FixedSizeListProps<any>>(
+    (props, ref) => (
+      <FixedSizeList
+        ref={(instance) => {
+          listRef.current = instance; // Assign the instance to ref
+          if (typeof ref === "function") {
+            ref(instance);
+          } else if (ref) {
+            (ref as React.MutableRefObject<FixedSizeList<any> | null>).current =
+              instance;
+          }
+        }}
+        height={DROPDOWN_HEIGHT}
+        width="100%"
+        itemSize={ITEM_HEIGHT}
+        itemCount={sortedOptions.length}
+        {...props}
+      >
+        {renderRow}
+      </FixedSizeList>
+    )
+  );
 
   const IconComponent = (props: any) => (
     <Tooltip title={config.toolTips || ""}>
