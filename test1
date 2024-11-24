@@ -22,10 +22,10 @@ type CustomSelectFieldProps = {
 };
 
 const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
-  ({ children, height, itemSize, width }, ref) => (
+  ({ children, itemSize, width }, ref) => (
     <FixedSizeList
       ref={ref as React.RefObject<FixedSizeList<any>>}
-      height={height}
+      height={200} // Fixed height for virtualization
       itemSize={itemSize}
       itemCount={React.Children.count(children)}
       width={width}
@@ -97,18 +97,8 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           },
           MenuListProps: {
             component: VirtualizedList,
-            height: 200,
             itemSize: 35,
             width: "100%",
-            children: options.map((option) => (
-              <MenuItem
-                key={option.key || option.value}
-                value={option.key || option.value}
-                style={styles.fieldEntryStyles}
-              >
-                {option.label || option.value}
-              </MenuItem>
-            )),
           },
         }}
         inputProps={{
