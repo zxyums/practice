@@ -6,15 +6,18 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { useController, useFormContext } from "react-hook-form";
-import lodash from "lodash";
 import * as styles from "../../shared/styles"; // Ensure this path is correct
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { FixedSizeList } from "react-window";
-import { FieldConfig } from "../../types/formTypes"; // Importing FieldConfig
+import { FieldConfig } from "../../types/formTypes"; // Ensure this is correct
+import lodash from "lodash"; // Importing lodash for sorting
 
 type CustomSelectFieldProps = {
   config: FieldConfig;
-  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void;
+  onChange?: (
+    event: React.ChangeEvent<{ value: unknown }>,
+    value: any
+  ) => void;
   control?: any;
 };
 
@@ -47,7 +50,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
   const { field, fieldState } = useController({
     name: config.name,
     control,
-    defaultValue: config.defaultValue || null,
+    defaultValue: config.defaultValue || "",
     rules: {
       required: config.required ? `${config.label} is required` : false,
     },
@@ -60,6 +63,9 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
       clearErrors(config.name);
     }
   }, [field.value, config.name, clearErrors]);
+
+  // Ensure options exist and are sorted by the 'value' property
+  const options = lodash.orderBy(config.options || [], ["value"], ["asc"]);
 
   return (
     <div>
@@ -87,11 +93,14 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
         )}
         MenuProps={{
           PaperProps: {
-            style: { maxHeight: 200 }, // Set a fixed dropdown height
+            style: { maxHeight: 200 },
           },
           MenuListProps: {
             component: VirtualizedList,
-            children: config.options.map((option) => (
+            height: 200,
+            itemSize: 35,
+            width: "100%",
+            children: options.map((option) => (
               <MenuItem
                 key={option.key || option.value}
                 value={option.key || option.value}
@@ -106,20 +115,21 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           "aria-controls": config.name,
         }}
       >
-        {config.options.length > 10 && (
+        {options.length > 0 ? (
+          options.map((option) => (
+            <MenuItem
+              key={option.key || option.value}
+              value={option.key || option.value}
+              style={styles.fieldEntryStyles}
+            >
+              {option.label || option.value}
+            </MenuItem>
+          ))
+        ) : (
           <MenuItem value="" style={styles.fieldEntryStyles} disabled>
-            Select
+            No options available
           </MenuItem>
         )}
-        {config.options.map((option) => (
-          <MenuItem
-            key={option.key || option.value}
-            value={option.key || option.value}
-            style={styles.fieldEntryStyles}
-          >
-            {option.label || option.value}
-          </MenuItem>
-        ))}
       </Select>
       <FormHelperText style={{ color: "#B71C1C" }}>
         {error?.message || config.helperText || ""}
