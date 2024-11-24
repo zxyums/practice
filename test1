@@ -1,36 +1,37 @@
-
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   FormHelperText,
   MenuItem,
   Select,
   Tooltip,
-  Popper,
-  MenuList,
-  ClickAwayListener,
+  InputAdornment,
 } from "@mui/material";
 import { FixedSizeList } from "react-window";
 import { useController, useFormContext } from "react-hook-form";
-import ArrowDropDown from "@mui/icons-material/ArrowDropDown";
-import _ from "lodash";
+import lodash from "lodash";
+import Info from "@mui/icons-material/Info";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CustomLabel from "./CustomLabel";
+import styles from "../shared/styles";
+
+type FieldConfig = {
+  name: string;
+  label: string;
+  required?: boolean;
+  defaultValue?: any;
+  options: { key: any; value: any; label: string }[];
+  toolTips?: string;
+  helperText?: string;
+  readOnly?: boolean;
+  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void;
+};
 
 type Props = {
   control: any;
-  config: {
-    name: string;
-    label: string;
-    required?: boolean;
-    options: { key: any; value: any; label: string }[];
-    defaultValue?: any;
-    toolTips?: string; // Tooltip for the dropdown
-    helperText?: string;
-    readOnly?: boolean;
-  };
-  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void; // Optional custom onChange
+  config: FieldConfig;
 };
 
-const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
+const CustomSelectField: React.FC<Props> = ({ control, config }) => {
   const { register, clearErrors } = useFormContext();
   const { fieldState, field } = useController({
     control,
@@ -45,76 +46,61 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const { error } = fieldState;
 
-  // Local state to manage dropdown open/close
-  const [open, setOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleToggle = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-    setOpen((prevOpen) => !prevOpen);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
-
-  const handleOnChange = (value: any) => {
-    if (onChange) {
-      onChange({ target: { value } } as React.ChangeEvent<{ value: unknown }>, value);
+  useEffect(() => {
+    if (field.value) {
+      clearErrors(config.name);
     }
-    field.onChange(value); // Default behavior
-    clearErrors(config.name); // Clear errors
-    setOpen(false); // Close dropdown after selection
+  }, [field.value, clearErrors, config.name]);
+
+  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    const selectedValue = event.target.value;
+    if (config.onChange) {
+      config.onChange(event, selectedValue); // Call custom onChange if provided
+    }
+    field.onChange(selectedValue); // Default behavior
   };
 
   const renderValue = (selected: string) => {
     if (!selected) {
-      return <span style={{ color: "#999" }}>Select</span>;
+      return <em style={styles.fieldEntryStyles}>Select</em>;
     }
 
-    const selectedOption = config.options.find(
+    // Use optional chaining to handle undefined safely
+    const selectedOption = config.options?.find(
       (option) => option.value === selected
     );
-
-    return selectedOption?.label || selected;
+    return selectedOption?.label || selected; // Use optional chaining for label
   };
 
-  // Memoize sorted options for performance
-  const sortedOptions = useMemo(() => {
-    console.log("Dropdown Options:", config.options); // Debug the options array
-    const sorted = _.orderBy(config.options, ["value"], ["asc"]);
-    console.log("Sorted Options:", sorted); // Debug the sorted options
-    return sorted;
-  }, [config.options]);
+  const sortedOptions = useMemo(
+    () => lodash.orderBy(config.options || [], ["value"], ["asc"]), // Use default empty array
+    [config.options]
+  );
 
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
-  // Render a single row in the virtualized list
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    if (!sortedOptions[index]) {
-      return null; // Avoid rendering if the item is undefined
-    }
     const option = sortedOptions[index];
     return (
       <MenuItem
-        key={option.key}
-        value={option.value}
+        key={option?.key} // Use optional chaining for key
+        value={option?.value} // Use optional chaining for value
         style={style}
-        onClick={() => handleOnChange(option.value)}
+        onClick={() => handleOnChange({ target: { value: option?.value } } as React.ChangeEvent<{ value: unknown }>)}
       >
-        {option.label}
+        {option?.label} {/* Use optional chaining for label */}
       </MenuItem>
     );
   };
 
   const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
     <FixedSizeList
+      ref={ref}
       height={DROPDOWN_HEIGHT}
       width="100%"
       itemSize={ITEM_HEIGHT}
       itemCount={sortedOptions.length}
-      outerRef={ref} // Correct ref handling for react-window
       {...props}
     >
       {renderRow}
@@ -123,44 +109,50 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const IconComponent = (props: any) => (
     <Tooltip title={config.toolTips || ""}>
-      <ArrowDropDown {...props} />
+      <ArrowDropDownIcon {...props} />
     </Tooltip>
   );
 
   return (
-    <div>
+    <div className="flexing">
       <CustomLabel htmlFor={config.name} label={config.label} />
-      <div>
-        <Select
-          id={config.name}
-          value={field.value || config.defaultValue || ""}
-          {...register(config.name)}
-          onClick={handleToggle}
-          displayEmpty
-          renderValue={renderValue}
-          IconComponent={IconComponent}
-          inputProps={{
-            "data-testid": "custom_select",
-            "aria-controls": config.name,
-            "aria-label": config.label,
-          }}
-        />
-        <Popper open={open} anchorEl={anchorEl} placement="bottom-start" style={{ zIndex: 1300 }}>
-          <ClickAwayListener onClickAway={handleClose}>
-            <MenuList autoFocusItem={open}>
-              <VirtualizedList />
-            </MenuList>
-          </ClickAwayListener>
-        </Popper>
-      </div>
-      {error && (
-        <FormHelperText style={{ color: "#D32F2F" }}>
-          {error?.message || config.helperText || ""}
-        </FormHelperText>
-      )}
-      {!error && config.helperText && (
-        <FormHelperText>{config.helperText}</FormHelperText>
-      )}
+      <Select
+        id={config.name}
+        value={field.value || ""}
+        {...register(config.name)}
+        onChange={handleOnChange}
+        displayEmpty
+        renderValue={renderValue}
+        IconComponent={IconComponent}
+        inputProps={{
+          "data-testid": "custom_select",
+          "aria-controls": config.name,
+          "aria-label": config.label,
+        }}
+        MenuProps={{
+          PaperProps: {
+            style: { maxHeight: DROPDOWN_HEIGHT },
+          },
+          MenuListProps: {
+            component: VirtualizedList, // Inject virtualized list
+          },
+        }}
+        disabled={config.readOnly}
+        error={!!error}
+      >
+        <MenuItem value="" disabled>
+          <em style={styles.fieldEntryStyles}>Select</em>
+        </MenuItem>
+        {/* Render other options if virtualization is disabled */}
+        {sortedOptions?.map((option) => (
+          <MenuItem key={option?.key} value={option?.value}>
+            {option?.label}
+          </MenuItem>
+        ))}
+      </Select>
+      <FormHelperText style={{ color: "#B71C1C" }}>
+        {error?.message || config.helperText || ""}
+      </FormHelperText>
     </div>
   );
 };
