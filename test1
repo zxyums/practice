@@ -1,5 +1,4 @@
-
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   FormHelperText,
   InputAdornment,
@@ -9,12 +8,12 @@ import {
 } from "@mui/material";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
-import CustomLabel from "./CustomLabel"; // Retained original import
-import Info from "@mui/icons-material/Info"; // Retained original import
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown"; // Corrected icon import
-import styles from "../../shared/styles"; // Corrected styles import
-import { FieldConfig } from "../../types/formTypes"; // Corrected FieldConfig import
-import { FixedSizeList } from "react-window"; // For virtualization
+import CustomLabel from "./CustomLabel";
+import Info from "@mui/icons-material/Info";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import styles from "../../shared/styles"; // Updated import
+import { FieldConfig } from "../../types/formTypes"; // Updated import
+import { FixedSizeList } from "react-window";
 
 type Props = {
   control: any;
@@ -71,6 +70,8 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
+  const listRef = useRef<any>(null); // Ref for FixedSizeList
+
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const option = sortedOptions[index];
     if (!option) return null; // Safeguard against invalid indices
@@ -92,7 +93,14 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
     <FixedSizeList
-      ref={ref}
+      ref={(instance) => {
+        listRef.current = instance; // Assign the instance to ref
+        if (typeof ref === "function") {
+          ref(instance);
+        } else if (ref) {
+          ref.current = instance;
+        }
+      }}
       height={DROPDOWN_HEIGHT}
       width="100%"
       itemSize={ITEM_HEIGHT}
