@@ -4,22 +4,23 @@ import {
   MenuItem,
   Select,
   Tooltip,
+  SelectChangeEvent, // Import for Material-UI's SelectChangeEvent
 } from "@mui/material";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
-import ArrowDropDownIcon from "@mui/x-date-pickers/icons"; // Corrected import for ArrowDropDownIcon
-import * as styles from "../../shared/styles"; // Fixed styles import
-import { FieldConfig } from "../../types/formTypes"; // Fixed formTypes import
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown"; // Updated import
+import * as styles from "../../shared/styles";
+import { FieldConfig } from "../../types/formTypes";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 
 type Props = {
   control: any;
   config: FieldConfig;
   onChange?: (
-    event: React.ChangeEvent<{ value: unknown }>,
+    event: SelectChangeEvent<string>, // Correct type for onChange
     value: string
-  ) => void; // Separate onChange
+  ) => void;
 };
 
 const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
@@ -43,8 +44,8 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     }
   }, [field.value, clearErrors, config.name]);
 
-  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedValue = event.target.value as string;
+  const handleOnChange = (event: SelectChangeEvent<string>) => {
+    const selectedValue = event.target.value;
     if (onChange) {
       onChange(event, selectedValue); // Call separate onChange prop if provided
     }
@@ -80,7 +81,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         onClick={() =>
           handleOnChange({
             target: { value: option.value },
-          } as unknown as React.ChangeEvent<{ value: unknown }>)
+          } as SelectChangeEvent<string>)
         }
       >
         {option.label}
