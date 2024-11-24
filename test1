@@ -1,171 +1,106 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, forwardRef } from "react";
 import {
-  FormHelperText,
   MenuItem,
   Select,
+  FormHelperText,
+  InputAdornment,
   Tooltip,
-  SelectChangeEvent,
 } from "@mui/material";
+import { FixedSizeList } from "react-window";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import * as styles from "../../shared/styles";
 import { FieldConfig } from "../../types/formTypes";
-import { FixedSizeList, ListChildComponentProps } from "react-window";
+import * as styles from "../../shared/styles";
 
-type Props = {
+const DROPDOWN_HEIGHT = 300;
+
+const VirtualizedList = forwardRef((props, ref) => (
+  <FixedSizeList
+    height={DROPDOWN_HEIGHT}
+    itemSize={35}
+    itemCount={props.children.length}
+    width="100%"
+    ref={ref}
+  >
+    {({ index, style }) => <div style={style}>{props.children[index]}</div>}
+  </FixedSizeList>
+));
+
+type CustomSelectFieldProps = {
   control: any;
   config: FieldConfig;
-  onChange?: (event: SelectChangeEvent<string>, value: string) => void;
+  onChange?: (value: string) => void; // Optional onChange support
 };
 
-const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
-  const { register, clearErrors, setError } = useFormContext();
-  const { fieldState, field } = useController({
+const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
+  control,
+  config,
+  onChange,
+}) => {
+  const { register, clearErrors } = useFormContext();
+  const { field, fieldState } = useController({
     control,
     name: config.name,
     defaultValue: config.defaultValue || "",
     rules: {
-      required: config.required ? `${config.label} is required` : false,
+      required: config.required
+        ? `${config.label} is required`
+        : false,
     },
   });
-
   const { error } = fieldState;
-  const [menuOpen, setMenuOpen] = useState(false); // Control menu open state
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Clear errors if a valid value is selected
-  const handleValueChange = (value: string) => {
-    if (value) {
-      clearErrors(config.name);
-    } else if (config.required) {
-      setError(config.name, {
-        type: "required",
-        message: `${config.label} is required`,
-      });
-    }
-    field.onChange(value);
-  };
-
-  // Handle `onChange` behavior
   const handleOnChange = (value: string) => {
+    field.onChange(value);
     if (onChange) {
-      onChange({ target: { value } } as SelectChangeEvent<string>, value);
+      onChange(value); // Trigger optional onChange callback
     }
-    handleValueChange(value); // Update validation and value
-    setMenuOpen(false); // Close menu after selection
+    if (value) {
+      clearErrors(config.name); // Clear error on valid selection
+    }
   };
 
-  // Validate the current value against the dropdown options
-  const getValidValue = () => {
-    const isValid = config.options?.some(
-      (option) => option.value === field.value
-    );
-    return isValid ? field.value : ""; // Return the valid value or fallback
-  };
-
-  // Render the selected value
   const renderValue = (selected: string) => {
-    if (!selected) {
-      return <span style={styles.fieldEntryStyles}>Select</span>;
-    }
-    const selectedOption = config.options?.find(
-      (option) => option.value === selected
-    );
-    return selectedOption?.label || selected;
+    if (!selected) return <em style={styles.fieldEntryStyles}>Select</em>;
+    const selectedLabel = config.options?.find(
+      (option) => option.key === selected || option.value === selected
+    )?.label;
+    return selectedLabel || selected;
   };
 
-  // Memoized and sorted dropdown options
-  const sortedOptions = useMemo(() => {
-    if (!Array.isArray(config.options)) {
-      console.warn("Dropdown options are missing or invalid");
-      return [];
-    }
-    return lodash.orderBy(config.options, ["value"], ["asc"]);
-  }, [config.options]);
-
-  const ITEM_HEIGHT = 40;
-  const DROPDOWN_HEIGHT = 300;
-
-  // Virtualized rendering for large dropdown lists
-  const renderRow = ({ index, style }: ListChildComponentProps) => {
-    const option = sortedOptions[index];
-    if (!option) {
-      console.warn("Option missing at index:", index);
-      return null;
-    }
-    return (
-      <MenuItem
-        key={option.key || option.value}
-        value={option.value}
-        style={style}
-        onClick={() => handleOnChange(option.value)} // Select value and close menu
-      >
-        {option.label || option.value}
-      </MenuItem>
-    );
-  };
-
-  const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
-    <FixedSizeList
-      height={DROPDOWN_HEIGHT}
-      width="100%"
-      itemSize={ITEM_HEIGHT}
-      itemCount={sortedOptions.length}
-      outerRef={ref as React.Ref<HTMLDivElement>}
-      {...props}
-    >
-      {renderRow}
-    </FixedSizeList>
-  ));
-
-  // Tooltip-enabled icon
-  const IconComponent = (props: any) => (
-    <Tooltip title={config.toolTips || ""}>
-      <ArrowDropDownIcon {...props} />
-    </Tooltip>
-  );
-
-  // Determine rendering strategy
-  const renderMenuItems = () => {
-    if (sortedOptions.length <= 10) {
-      // Render as normal MenuItems for small datasets
-      return sortedOptions.map((option) => (
-        <MenuItem
-          key={option.key || option.value}
-          value={option.value}
-          onClick={() => handleOnChange(option.value)} // Close menu on click
-        >
-          {option.label || option.value}
-        </MenuItem>
-      ));
-    }
-
-    // Render virtualized list for large datasets
-    return null;
-  };
+  const getValidValue = () =>
+    field.value || (config.defaultValue ? config.defaultValue : "");
 
   return (
-    <div className="flexing">
+    <div>
       <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={getValidValue()} // Validate the value
+        value={getValidValue()} // Ensure a valid value is displayed
         {...register(config.name)}
-        open={menuOpen} // Control menu open state
+        open={menuOpen}
         onOpen={() => setMenuOpen(true)}
         onClose={() => setMenuOpen(false)}
-        onChange={(event) => handleOnChange(event.target.value)}
+        onChange={(event) => {
+          const selectedValue = event.target.value;
+          handleOnChange(selectedValue);
+        }}
         displayEmpty
         renderValue={renderValue}
-        IconComponent={IconComponent}
+        IconComponent={(props) => (
+          <Tooltip title={config.toolTips || ""} placement="top">
+            <InputAdornment position="end" {...props} />
+          </Tooltip>
+        )}
         inputProps={{
           "data-testid": "custom_select",
           "aria-controls": config.name,
           "aria-label": config.label,
         }}
         MenuProps={
-          sortedOptions.length > 10
+          config.options.length > 10
             ? {
                 PaperProps: {
                   style: { maxHeight: DROPDOWN_HEIGHT },
@@ -178,15 +113,35 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         }
         disabled={config.readOnly}
         error={!!error}
+        onBlur={() => {
+          if (!field.value && config.required) {
+            field.onBlur();
+          }
+        }}
       >
-        {/* Placeholder */}
-        <MenuItem value="" disabled>
-          <em style={styles.fieldEntryStyles}>Select</em>
-        </MenuItem>
-
-        {renderMenuItems()}
+        {config.options.length <= 10 ? (
+          <MenuItem
+            value=""
+            style={styles.fieldEntryStyles}
+            disabled
+          >
+            Select
+          </MenuItem>
+        ) : null}
+        {lodash
+          .orderBy(config.options, ["value"], ["asc"])
+          .map((option) => (
+            <MenuItem
+              key={option.key || option.value}
+              value={option.key || option.value}
+              style={styles.fieldEntryStyles}
+              onClick={() => setMenuOpen(false)} // Ensure menu closes on selection
+            >
+              {option.label || option.value}
+            </MenuItem>
+          ))}
       </Select>
-      <FormHelperText style={{ color: error ? "#B71C1C" : "#999" }}>
+      <FormHelperText style={{ color: "#B71C1C" }}>
         {error?.message || config.helperText || ""}
       </FormHelperText>
     </div>
