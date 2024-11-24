@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo } from "react";
 import {
   FormHelperText,
@@ -6,21 +7,22 @@ import {
   Select,
   Tooltip,
 } from "@mui/material";
-import { FixedSizeList } from "react-window"; // For virtualization
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
-import CustomLabel from "./CustomLabel"; // Retained as in original code
-import Info from "@mui/icons-material/Info"; // Retained as in original code
-import ArrowDropDownIcon from "@mui/x-date-pickers/icons"; // Retained as in original code
-import styles from "../shared/styles"; // Corrected styles import
-import { FieldConfig } from "../types/formTypes"; // Using your existing type
+import CustomLabel from "./CustomLabel"; // Retained original import
+import Info from "@mui/icons-material/Info"; // Retained original import
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown"; // Corrected icon import
+import styles from "../../shared/styles"; // Corrected styles import
+import { FieldConfig } from "../../types/formTypes"; // Corrected FieldConfig import
+import { FixedSizeList } from "react-window"; // For virtualization
 
 type Props = {
   control: any;
   config: FieldConfig;
+  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: string) => void; // Separate onChange
 };
 
-const CustomSelectField: React.FC<Props> = ({ control, config }) => {
+const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const { register, clearErrors } = useFormContext();
   const { fieldState, field } = useController({
     control,
@@ -43,8 +45,10 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
 
   const handleOnChange = (event: any) => {
     const selectedValue = event.target.value;
-    if (config.onChange) {
-      config.onChange(event, selectedValue); // Call custom onChange if provided
+    if (onChange) {
+      onChange(event, selectedValue); // Call separate onChange prop if provided
+    } else if (config.onChange) {
+      config.onChange(event, selectedValue); // Call config-provided onChange if defined
     }
     field.onChange(selectedValue); // Default behavior
   };
