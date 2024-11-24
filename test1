@@ -1,22 +1,30 @@
-import React, { useEffect, useMemo, useRef } from "react";
+
+import React, { useMemo } from "react";
 import {
   FormHelperText,
   MenuItem,
   Select,
   Tooltip,
 } from "@mui/material";
-import lodash from "lodash";
-import { useController, useFormContext } from "react-hook-form";
-import CustomLabel from "./CustomLabel";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import styles from "../../shared/styles"; // Updated import
-import { FieldConfig } from "../../types/formTypes"; // Updated import
 import { FixedSizeList } from "react-window";
+import { useController, useFormContext } from "react-hook-form";
+import { ArrowDropDownIcon } from "@mui/icons-material";
+import _ from "lodash";
+import CustomLabel from "./CustomLabel";
 
 type Props = {
   control: any;
-  config: FieldConfig;
-  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: string) => void; // Separate onChange
+  config: {
+    name: string;
+    label: string;
+    required?: boolean;
+    options: { key: any; value: any; label: string }[];
+    defaultValue?: any;
+    toolTips?: string; // Tooltip for the dropdown
+    helperText?: string;
+    readOnly?: boolean;
+  };
+  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void; // Optional custom onChange
 };
 
 const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
@@ -34,65 +42,63 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const { error } = fieldState;
 
-  useEffect(() => {
-    if (field.value) {
-      clearErrors(config.name);
-    }
-  }, [field.value, clearErrors, config.name]);
-
+  // Handle onChange event
   const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedValue = event.target.value as string;
+    const selectedValue = event.target.value;
     if (onChange) {
-      onChange(event, selectedValue); // Call separate onChange prop if provided
+      onChange(event, selectedValue); // Trigger custom onChange if provided
     }
     field.onChange(selectedValue); // Default behavior
+    clearErrors(config.name); // Clear errors
   };
 
+  // Render selected value
   const renderValue = (selected: string) => {
     if (!selected) {
-      return <span style={styles.fieldEntryStyles}>Select</span>;
+      return <span style={{ color: "#999" }}>Select</span>;
     }
-    const selectedOption = config.options?.find(
+
+    const selectedOption = config.options.find(
       (option) => option.value === selected
     );
+
     return selectedOption?.label || selected;
   };
 
+  // Sort options dynamically and memoize
   const sortedOptions = useMemo(
-    () => lodash.orderBy(config.options, ["value"], ["asc"]),
+    () => _.orderBy(config.options, ["value"], ["asc"]),
     [config.options]
   );
 
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
-  const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
+  // Render a single row in the virtualized list
+  const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const option = sortedOptions[index];
+    return (
+      <MenuItem
+        key={option.key}
+        value={option.value}
+        style={style}
+      >
+        {option.label}
+      </MenuItem>
+    );
+  };
+
+  // Inject options into Material-UI's Menu component
+  const VirtualizedList = React.forwardRef((props, ref) => (
     <FixedSizeList
+      ref={ref}
       height={DROPDOWN_HEIGHT}
       width="100%"
       itemSize={ITEM_HEIGHT}
       itemCount={sortedOptions.length}
-      outerRef={ref as React.Ref<HTMLDivElement>} // Correctly forward the outerRef
       {...props}
     >
-      {({ index, style }) => {
-        const option = sortedOptions[index];
-        if (!option) return null; // Safeguard against invalid indices
-        return (
-          <MenuItem
-            key={option.key}
-            value={option.value}
-            style={style}
-            onClick={() =>
-              handleOnChange({
-                target: { value: option.value },
-              } as React.ChangeEvent<{ value: unknown }>)
-            }
-          >
-            {option.label}
-          </MenuItem>
-        );
-      }}
+      {renderRow}
     </FixedSizeList>
   ));
 
@@ -103,39 +109,42 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   );
 
   return (
-    <div className="flexing">
+    <div>
       <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={field.value || ""}
+        value={field.value || config.defaultValue || ""} // Default to config.defaultValue
         {...register(config.name)}
-        onChange={handleOnChange}
+        onChange={handleOnChange} // Correctly handle onChange
         displayEmpty
         renderValue={renderValue}
         IconComponent={IconComponent}
+        MenuProps={{
+          PaperProps: {
+            style: { maxHeight: DROPDOWN_HEIGHT, width: "auto" },
+          },
+          MenuListProps: {
+            component: VirtualizedList, // Inject VirtualizedList into the Menu
+          },
+        }}
         inputProps={{
           "data-testid": "custom_select",
           "aria-controls": config.name,
           "aria-label": config.label,
         }}
-        MenuProps={{
-          PaperProps: {
-            style: { maxHeight: DROPDOWN_HEIGHT },
-          },
-          MenuListProps: {
-            component: VirtualizedList,
-          },
-        }}
-        disabled={config.readOnly}
-        error={!!error}
       >
         <MenuItem value="" disabled>
-          <em style={styles.fieldEntryStyles}>Select</em>
+          <span style={{ color: "#999" }}>Select</span>
         </MenuItem>
       </Select>
-      <FormHelperText style={{ color: error ? "#B71C1C" : "#999" }}>
-        {error?.message || config.helperText || ""}
-      </FormHelperText>
+      {error && (
+        <FormHelperText style={{ color: "#D32F2F" }}>
+          {error?.message || config.helperText || ""}
+        </FormHelperText>
+      )}
+      {!error && config.helperText && (
+        <FormHelperText>{config.helperText}</FormHelperText>
+      )}
     </div>
   );
 };
