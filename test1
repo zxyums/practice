@@ -16,19 +16,19 @@ type CustomSelectFieldProps = {
   config: FieldConfig;
   onChange?: (
     event: React.ChangeEvent<{ value: unknown }>,
-    value: any
+    value: string | number | undefined
   ) => void;
   control?: any;
 };
 
 const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
-  ({ children, itemSize, width }, ref) => (
+  ({ children, itemHeight, width }, ref) => (
     <FixedSizeList
       ref={ref as React.RefObject<FixedSizeList<any>>}
       height={200} // Fixed height for virtualization
-      itemSize={itemSize}
+      itemSize={itemHeight || 35} // Default item height
       itemCount={React.Children.count(children)}
-      width={width}
+      width={width || "100%"}
     >
       {({ index, style }) => (
         <div style={style}>
@@ -75,7 +75,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
         {...field}
         onChange={(e) => {
           field.onChange(e);
-          onChange?.(e, e.target.value);
+          onChange?.(e, e.target.value as string | number | undefined);
         }}
         onBlur={() => {
           if (!field.value && config.required) {
@@ -97,9 +97,9 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           },
           MenuListProps: {
             component: VirtualizedList,
-            itemSize: 35,
+            itemHeight: 35, // Adjust height per item
             width: "100%",
-          },
+          } as any, // Casting `MenuListProps` to allow virtualized list customization
         }}
         inputProps={{
           "aria-controls": config.name,
