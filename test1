@@ -88,7 +88,12 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
       return null;
     }
     return (
-      <MenuItem key={option.key || option.value} value={option.value} style={style}>
+      <MenuItem
+        key={option.key || option.value}
+        value={option.value}
+        style={style}
+        onClick={() => handleOnChange({ target: { value: option.value } } as SelectChangeEvent<string>)}
+      >
         {option.label || option.value}
       </MenuItem>
     );
