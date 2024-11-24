@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { useState } from "react";
 import {
   MenuItem,
   Select,
@@ -6,7 +6,7 @@ import {
   InputAdornment,
   Tooltip,
 } from "@mui/material";
-import { FixedSizeList, FixedSizeListProps } from "react-window";
+import { FixedSizeList } from "react-window";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
@@ -16,18 +16,18 @@ import * as styles from "../../shared/styles";
 const DROPDOWN_HEIGHT = 300;
 
 // VirtualizedList Component
-const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
-  (props, ref) => (
+const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
+  ({ children, height, width, itemSize }, ref) => (
     <FixedSizeList
-      {...props}
-      ref={ref as React.RefObject<HTMLDivElement>} // Correctly cast ref
-      height={DROPDOWN_HEIGHT}
-      itemSize={35}
-      width="100%"
+      ref={ref as React.RefObject<FixedSizeList<any>>} // Correctly cast the ref
+      height={height}
+      itemSize={itemSize}
+      itemCount={React.Children.count(children)}
+      width={width}
     >
       {({ index, style }) => (
         <div style={style}>
-          {React.Children.toArray(props.children)[index]}
+          {React.Children.toArray(children)[index]}
         </div>
       )}
     </FixedSizeList>
@@ -108,7 +108,16 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
                   style: { maxHeight: DROPDOWN_HEIGHT },
                 },
                 MenuListProps: {
-                  component: VirtualizedList, // Attach virtualized list
+                  component: VirtualizedList,
+                  children: config.options.map((option) => (
+                    <MenuItem
+                      key={option.key || option.value}
+                      value={option.key || option.value}
+                      style={styles.fieldEntryStyles}
+                    >
+                      {option.label || option.value}
+                    </MenuItem>
+                  )),
                 },
               }
             : {}
