@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useRef, useState } from "react";
 import {
   MenuItem,
   Select,
@@ -15,17 +15,17 @@ import * as styles from "../../shared/styles";
 
 const DROPDOWN_HEIGHT = 300;
 
-// VirtualizedList component
+// VirtualizedList Component
 const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
   (props, ref) => {
     return (
       <FixedSizeList
         {...props}
-        ref={ref}
+        ref={ref as React.Ref<HTMLDivElement>} // Ensure proper ref type
         height={DROPDOWN_HEIGHT}
         itemSize={35}
         width="100%"
-        itemCount={props.children ? React.Children.count(props.children) : 0}
+        itemCount={React.Children.count(props.children || [])} // Avoid undefined children
       >
         {({ index, style }) => (
           <div style={style}>
@@ -42,7 +42,7 @@ VirtualizedList.displayName = "VirtualizedList";
 type CustomSelectFieldProps = {
   control: any;
   config: FieldConfig;
-  onChange?: (value: string) => void; // Optional onChange support
+  onChange?: (value: string) => void; // Optional onChange
 };
 
 const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
@@ -65,7 +65,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
 
   const handleOnChange = (value: string) => {
     field.onChange(value);
-    if (onChange) onChange(value); // Trigger optional onChange callback
+    if (onChange) onChange(value);
     if (value) clearErrors(config.name); // Clear error on valid selection
   };
 
@@ -85,7 +85,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
       <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={getValidValue()} // Ensure a valid value is displayed
+        value={getValidValue()}
         {...register(config.name)}
         open={menuOpen}
         onOpen={() => setMenuOpen(true)}
@@ -93,7 +93,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
         onChange={(event) => {
           const selectedValue = event.target.value as string;
           handleOnChange(selectedValue);
-          setMenuOpen(false); // Close menu after selection
+          setMenuOpen(false); // Close dropdown on selection
         }}
         displayEmpty
         renderValue={renderValue}
@@ -127,7 +127,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           }
         }}
       >
-        {config.options?.length <= 10 ? (
+        {config.options?.length && config.options.length <= 10 ? (
           <MenuItem value="" style={styles.fieldEntryStyles} disabled>
             Select
           </MenuItem>
