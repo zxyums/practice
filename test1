@@ -6,13 +6,14 @@ import {
   Select,
   Tooltip,
 } from "@mui/material";
+import { FixedSizeList } from "react-window"; // For virtualization
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
-import CustomLabel from "./CustomLabel"; // Retained original import
-import Info from "@mui/icons-material/Info";
-import ArrowDropDownIcon from "@mui/x-date-pickers/icons"; // As per your original code
-import styles from "../shared/styles"; // Corrected import for `styles`
-import { FieldConfig } from "../types/formTypes"; // Using FieldConfig as per original
+import CustomLabel from "./CustomLabel"; // Retained as in original code
+import Info from "@mui/icons-material/Info"; // Retained as in original code
+import ArrowDropDownIcon from "@mui/x-date-pickers/icons"; // Retained as in original code
+import styles from "../shared/styles"; // Corrected styles import
+import { FieldConfig } from "../types/formTypes"; // Using your existing type
 
 type Props = {
   control: any;
@@ -68,18 +69,19 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
 
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const option = sortedOptions[index];
+    if (!option) return null; // Safeguard against invalid indices
     return (
       <MenuItem
-        key={option?.key}
-        value={option?.value}
+        key={option.key}
+        value={option.value}
         style={style}
         onClick={() =>
           handleOnChange({
-            target: { value: option?.value },
+            target: { value: option.value },
           } as React.ChangeEvent<{ value: unknown }>)
         }
       >
-        {option?.label}
+        {option.label}
       </MenuItem>
     );
   };
