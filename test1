@@ -15,12 +15,12 @@ import * as styles from "../../shared/styles";
 
 const DROPDOWN_HEIGHT = 300;
 
-// VirtualizedList Component
-const VirtualizedList = forwardRef<FixedSizeList<any>, FixedSizeListProps>(
+// VirtualizedList Component with Ref Type Fixed
+const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
   (props, ref) => (
     <FixedSizeList
       {...props}
-      ref={ref as React.RefObject<FixedSizeList<any>>} // Ensure correct type
+      ref={ref as React.RefObject<HTMLDivElement>} // Correct ref type
       height={DROPDOWN_HEIGHT}
       itemSize={35}
       width="100%"
