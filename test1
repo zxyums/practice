@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { FixedSizeList } from "react-window";
 import { useController, useFormContext } from "react-hook-form";
-import { ArrowDropDownIcon } from "@mui/icons-material";
+import ArrowDropDown from "@mui/icons-material/ArrowDropDown";
 import _ from "lodash";
 import CustomLabel from "./CustomLabel";
 
@@ -102,13 +102,13 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     );
   };
 
-  const VirtualizedList = React.forwardRef<HTMLDivElement>((props, ref) => (
+  const VirtualizedList = React.forwardRef<HTMLDivElement, any>((props, ref) => (
     <FixedSizeList
-      ref={ref}
       height={DROPDOWN_HEIGHT}
       width="100%"
       itemSize={ITEM_HEIGHT}
       itemCount={sortedOptions.length}
+      outerRef={ref} // Correct ref handling for react-window
       {...props}
     >
       {renderRow}
@@ -117,7 +117,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const IconComponent = (props: any) => (
     <Tooltip title={config.toolTips || ""}>
-      <ArrowDropDownIcon {...props} />
+      <ArrowDropDown {...props} />
     </Tooltip>
   );
 
