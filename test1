@@ -6,40 +6,17 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { useController, useFormContext } from "react-hook-form";
-import * as styles from "../../shared/styles"; // Ensure correct import path
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { FixedSizeList } from "react-window";
-import { FieldConfig } from "../../types/formTypes"; // Ensure correct type import
 import lodash from "lodash";
 
 type CustomSelectFieldProps = {
   config: FieldConfig;
   onChange?: (
-    event: React.ChangeEvent<{ value: unknown }>,
+    event: SelectChangeEvent<string | number | undefined>,
     value: string | number | undefined
   ) => void;
   control?: any;
 };
-
-const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
-  ({ children, itemHeight, width }, ref) => (
-    <FixedSizeList
-      ref={ref as React.RefObject<FixedSizeList<any>>}
-      height={200} // Fixed height for virtualization
-      itemSize={itemHeight || 35} // Default item height
-      itemCount={React.Children.count(children)}
-      width={width || "100%"}
-    >
-      {({ index, style }) => (
-        <div style={style}>
-          {React.Children.toArray(children)[index] as React.ReactNode}
-        </div>
-      )}
-    </FixedSizeList>
-  )
-);
-
-VirtualizedList.displayName = "VirtualizedList";
 
 const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
   config,
@@ -64,29 +41,19 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
     }
   }, [field.value, config.name, clearErrors]);
 
-  // Ensure options exist and are sorted by the 'value' property
+  // Sort and prepare options
   const options = lodash.orderBy(config.options || [], ["value"], ["asc"]);
-
-  // Getter to avoid overwriting `value`
-  const getValue = () => {
-    return field.value || "";
-  };
 
   return (
     <div>
       <Select
         id={config.name}
-        value={getValue()} // Using getter method
-        {...field}
-        onChange={(e) => {
-          field.onChange(e);
-          onChange?.(e, e.target.value as string | number | undefined);
+        value={field.value || ""} // Ensure value is explicitly defined
+        onChange={(event) => {
+          field.onChange(event); // React Hook Form's handler
+          onChange?.(event, event.target.value); // External handler if provided
         }}
-        onBlur={() => {
-          if (!field.value && config.required) {
-            field.onBlur();
-          }
-        }}
+        onBlur={field.onBlur}
         fullWidth
         displayEmpty
         error={!!error}
@@ -96,32 +63,18 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
             <ArrowDropDownIcon {...props} />
           </InputAdornment>
         )}
-        MenuProps={{
-          PaperProps: {
-            style: { maxHeight: 200 },
-          },
-          MenuListProps: {
-            component: VirtualizedList,
-            itemHeight: 35, // Adjust height per item
-            width: "100%",
-          } as any, // Casting `MenuListProps` to allow virtualized list customization
-        }}
         inputProps={{
           "aria-controls": config.name,
         }}
       >
         {options.length > 0 ? (
           options.map((option) => (
-            <MenuItem
-              key={option.key || option.value}
-              value={option.key || option.value}
-              style={styles.fieldEntryStyles}
-            >
+            <MenuItem key={option.key || option.value} value={option.value}>
               {option.label || option.value}
             </MenuItem>
           ))
         ) : (
-          <MenuItem value="" style={styles.fieldEntryStyles} disabled>
+          <MenuItem value="" disabled>
             No options available
           </MenuItem>
         )}
