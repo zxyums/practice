@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import {
   FormHelperText,
@@ -79,16 +80,21 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   };
 
   // Memoize sorted options for performance
-  const sortedOptions = useMemo(
-    () => _.orderBy(config.options, ["value"], ["asc"]),
-    [config.options]
-  );
+  const sortedOptions = useMemo(() => {
+    console.log("Dropdown Options:", config.options); // Debug the options array
+    const sorted = _.orderBy(config.options, ["value"], ["asc"]);
+    console.log("Sorted Options:", sorted); // Debug the sorted options
+    return sorted;
+  }, [config.options]);
 
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
 
   // Render a single row in the virtualized list
   const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    if (!sortedOptions[index]) {
+      return null; // Avoid rendering if the item is undefined
+    }
     const option = sortedOptions[index];
     return (
       <MenuItem
