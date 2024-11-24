@@ -6,11 +6,11 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { useController, useFormContext } from "react-hook-form";
-import * as styles from "../../shared/styles"; // Ensure this path is correct
+import * as styles from "../../shared/styles"; // Ensure correct import path
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { FixedSizeList } from "react-window";
-import { FieldConfig } from "../../types/formTypes"; // Ensure this is correct
-import lodash from "lodash"; // Importing lodash for sorting
+import { FieldConfig } from "../../types/formTypes"; // Ensure correct type import
+import lodash from "lodash";
 
 type CustomSelectFieldProps = {
   config: FieldConfig;
@@ -67,11 +67,16 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
   // Ensure options exist and are sorted by the 'value' property
   const options = lodash.orderBy(config.options || [], ["value"], ["asc"]);
 
+  // Getter to avoid overwriting `value`
+  const getValue = () => {
+    return field.value || "";
+  };
+
   return (
     <div>
       <Select
         id={config.name}
-        value={field.value || ""}
+        value={getValue()} // Using getter method
         {...field}
         onChange={(e) => {
           field.onChange(e);
