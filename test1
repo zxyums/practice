@@ -4,12 +4,12 @@ import {
   MenuItem,
   Select,
   Tooltip,
-  SelectChangeEvent, // Import for Material-UI's SelectChangeEvent
+  SelectChangeEvent,
 } from "@mui/material";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown"; // Updated import
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import * as styles from "../../shared/styles";
 import { FieldConfig } from "../../types/formTypes";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
@@ -18,7 +18,7 @@ type Props = {
   control: any;
   config: FieldConfig;
   onChange?: (
-    event: SelectChangeEvent<string>, // Correct type for onChange
+    event: SelectChangeEvent<string>,
     value: string
   ) => void;
 };
@@ -52,6 +52,13 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     field.onChange(selectedValue); // Default behavior
   };
 
+  const getValidValue = () => {
+    const isValid = config.options?.some(
+      (option) => option.value === field.value
+    );
+    return isValid ? field.value : ""; // Return valid value or fallback
+  };
+
   const renderValue = (selected: string) => {
     if (!selected) {
       return <span style={styles.fieldEntryStyles}>Select</span>;
@@ -62,10 +69,13 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     return selectedOption?.label || selected;
   };
 
-  const sortedOptions = useMemo(
-    () => lodash.orderBy(config.options, ["value"], ["asc"]),
-    [config.options]
-  );
+  const sortedOptions = useMemo(() => {
+    if (!Array.isArray(config.options) || config.options.length === 0) {
+      console.warn("Dropdown options are empty or invalid.");
+      return [];
+    }
+    return lodash.orderBy(config.options, ["value"], ["asc"]);
+  }, [config.options]);
 
   const ITEM_HEIGHT = 40;
   const DROPDOWN_HEIGHT = 300;
@@ -75,14 +85,9 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     if (!option) return null; // Safeguard against invalid indices
     return (
       <MenuItem
-        key={option.key}
+        key={option.key || option.value}
         value={option.value}
         style={style}
-        onClick={() =>
-          handleOnChange({
-            target: { value: option.value },
-          } as SelectChangeEvent<string>)
-        }
       >
         {option.label}
       </MenuItem>
@@ -95,7 +100,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
       width="100%"
       itemSize={ITEM_HEIGHT}
       itemCount={sortedOptions.length}
-      outerRef={ref as React.Ref<HTMLDivElement>} // Corrected ref handling
+      outerRef={ref as React.Ref<HTMLDivElement>}
       {...props}
     >
       {renderRow}
@@ -113,7 +118,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
       <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={field.value || ""}
+        value={getValidValue()} // Validate the value
         {...register(config.name)}
         onChange={handleOnChange}
         displayEmpty
@@ -135,6 +140,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         disabled={config.readOnly}
         error={!!error}
       >
+        {/* Placeholder */}
         <MenuItem value="" disabled>
           <em style={styles.fieldEntryStyles}>Select</em>
         </MenuItem>
