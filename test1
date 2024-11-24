@@ -1,32 +1,18 @@
-
 import React, { useEffect, useMemo } from "react";
 import {
   FormHelperText,
+  InputAdornment,
   MenuItem,
   Select,
   Tooltip,
-  InputAdornment,
-  SelectChangeEvent,
 } from "@mui/material";
-import { FixedSizeList } from "react-window";
-import { useController, useFormContext } from "react-hook-form";
 import lodash from "lodash";
+import { useController, useFormContext } from "react-hook-form";
+import CustomLabel from "./CustomLabel"; // Retained original import
 import Info from "@mui/icons-material/Info";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import CustomLabel from "./CustomLabel";
-import styles from "../shared/styles";
-
-type FieldConfig = {
-  name: string;
-  label: string;
-  required?: boolean;
-  defaultValue?: any;
-  options: { key: any; value: any; label: string }[];
-  toolTips?: string;
-  helperText?: string;
-  readOnly?: boolean;
-  onChange?: (event: SelectChangeEvent<string>, value: string) => void;
-};
+import ArrowDropDownIcon from "@mui/x-date-pickers/icons"; // As per your original code
+import styles from "../shared/styles"; // Corrected import for `styles`
+import { FieldConfig } from "../types/formTypes"; // Using FieldConfig as per original
 
 type Props = {
   control: any;
@@ -54,7 +40,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
     }
   }, [field.value, clearErrors, config.name]);
 
-  const handleOnChange = (event: SelectChangeEvent<string>) => {
+  const handleOnChange = (event: any) => {
     const selectedValue = event.target.value;
     if (config.onChange) {
       config.onChange(event, selectedValue); // Call custom onChange if provided
@@ -64,9 +50,8 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
 
   const renderValue = (selected: string) => {
     if (!selected) {
-      return <em style={styles.fieldEntryStyles}>Select</em>;
+      return <span style={styles.fieldEntryStyles}>Select</span>;
     }
-
     const selectedOption = config.options?.find(
       (option) => option.value === selected
     );
@@ -74,7 +59,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
   };
 
   const sortedOptions = useMemo(
-    () => lodash.orderBy(config.options || [], ["value"], ["asc"]),
+    () => lodash.orderBy(config.options, ["value"], ["asc"]),
     [config.options]
   );
 
@@ -88,7 +73,11 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
         key={option?.key}
         value={option?.value}
         style={style}
-        onClick={() => handleOnChange({ target: { value: option?.value } } as SelectChangeEvent<string>)}
+        onClick={() =>
+          handleOnChange({
+            target: { value: option?.value },
+          } as React.ChangeEvent<{ value: unknown }>)
+        }
       >
         {option?.label}
       </MenuItem>
@@ -135,7 +124,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
             style: { maxHeight: DROPDOWN_HEIGHT },
           },
           MenuListProps: {
-            component: VirtualizedList, // Inject virtualized list
+            component: VirtualizedList,
           },
         }}
         disabled={config.readOnly}
@@ -144,14 +133,8 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
         <MenuItem value="" disabled>
           <em style={styles.fieldEntryStyles}>Select</em>
         </MenuItem>
-        {/* Render other options if virtualization is disabled */}
-        {sortedOptions?.map((option) => (
-          <MenuItem key={option?.key} value={option?.value}>
-            {option?.label}
-          </MenuItem>
-        ))}
       </Select>
-      <FormHelperText style={{ color: "#B71C1C" }}>
+      <FormHelperText style={{ color: error ? "#B71C1C" : "#999" }}>
         {error?.message || config.helperText || ""}
       </FormHelperText>
     </div>
