@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import {
   MenuItem,
   Select,
@@ -15,12 +15,12 @@ import * as styles from "../../shared/styles";
 
 const DROPDOWN_HEIGHT = 300;
 
-// VirtualizedList Component with Ref Type Fixed
+// VirtualizedList Component
 const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
   (props, ref) => (
     <FixedSizeList
       {...props}
-      ref={ref as React.RefObject<HTMLDivElement>} // Correct ref type
+      ref={ref as React.RefObject<HTMLDivElement>} // Correctly cast ref
       height={DROPDOWN_HEIGHT}
       itemSize={35}
       width="100%"
@@ -39,7 +39,7 @@ VirtualizedList.displayName = "VirtualizedList";
 type CustomSelectFieldProps = {
   control: any;
   config: FieldConfig;
-  onChange?: (value: string) => void; // Optional onChange
+  onChange?: (value: string) => void; // Optional custom onChange
 };
 
 const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
@@ -62,8 +62,9 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
 
   const handleOnChange = (value: string) => {
     field.onChange(value);
-    if (onChange) onChange(value);
-    if (value) clearErrors(config.name); // Clear error on valid selection
+    if (onChange) onChange(value); // Trigger custom onChange if provided
+    if (value) clearErrors(config.name); // Clear validation errors on valid selection
+    setMenuOpen(false); // Close dropdown on selection
   };
 
   const renderValue = (selected: string) => {
@@ -87,11 +88,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
         open={menuOpen}
         onOpen={() => setMenuOpen(true)}
         onClose={() => setMenuOpen(false)}
-        onChange={(event) => {
-          const selectedValue = event.target.value as string;
-          handleOnChange(selectedValue);
-          setMenuOpen(false); // Close dropdown on selection
-        }}
+        onChange={(event) => handleOnChange(event.target.value as string)}
         displayEmpty
         renderValue={renderValue}
         IconComponent={(props) => (
@@ -111,7 +108,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
                   style: { maxHeight: DROPDOWN_HEIGHT },
                 },
                 MenuListProps: {
-                  component: VirtualizedList, // Pass virtualized list component
+                  component: VirtualizedList, // Attach virtualized list
                 },
               }
             : {}
