@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo } from "react";
 import {
   FormHelperText,
@@ -5,6 +6,7 @@ import {
   Select,
   Tooltip,
   InputAdornment,
+  SelectChangeEvent,
 } from "@mui/material";
 import { FixedSizeList } from "react-window";
 import { useController, useFormContext } from "react-hook-form";
@@ -23,7 +25,7 @@ type FieldConfig = {
   toolTips?: string;
   helperText?: string;
   readOnly?: boolean;
-  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void;
+  onChange?: (event: SelectChangeEvent<string>, value: string) => void;
 };
 
 type Props = {
@@ -52,7 +54,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
     }
   }, [field.value, clearErrors, config.name]);
 
-  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+  const handleOnChange = (event: SelectChangeEvent<string>) => {
     const selectedValue = event.target.value;
     if (config.onChange) {
       config.onChange(event, selectedValue); // Call custom onChange if provided
@@ -65,15 +67,14 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
       return <em style={styles.fieldEntryStyles}>Select</em>;
     }
 
-    // Use optional chaining to handle undefined safely
     const selectedOption = config.options?.find(
       (option) => option.value === selected
     );
-    return selectedOption?.label || selected; // Use optional chaining for label
+    return selectedOption?.label || selected;
   };
 
   const sortedOptions = useMemo(
-    () => lodash.orderBy(config.options || [], ["value"], ["asc"]), // Use default empty array
+    () => lodash.orderBy(config.options || [], ["value"], ["asc"]),
     [config.options]
   );
 
@@ -84,12 +85,12 @@ const CustomSelectField: React.FC<Props> = ({ control, config }) => {
     const option = sortedOptions[index];
     return (
       <MenuItem
-        key={option?.key} // Use optional chaining for key
-        value={option?.value} // Use optional chaining for value
+        key={option?.key}
+        value={option?.value}
         style={style}
-        onClick={() => handleOnChange({ target: { value: option?.value } } as React.ChangeEvent<{ value: unknown }>)}
+        onClick={() => handleOnChange({ target: { value: option?.value } } as SelectChangeEvent<string>)}
       >
-        {option?.label} {/* Use optional chaining for label */}
+        {option?.label}
       </MenuItem>
     );
   };
