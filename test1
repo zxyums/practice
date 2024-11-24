@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import {
   MenuItem,
   Select,
@@ -6,7 +6,7 @@ import {
   InputAdornment,
   Tooltip,
 } from "@mui/material";
-import { FixedSizeList } from "react-window";
+import { FixedSizeList, FixedSizeListProps } from "react-window";
 import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
 import CustomLabel from "./CustomLabel";
@@ -15,17 +15,29 @@ import * as styles from "../../shared/styles";
 
 const DROPDOWN_HEIGHT = 300;
 
-const VirtualizedList = forwardRef((props, ref) => (
-  <FixedSizeList
-    height={DROPDOWN_HEIGHT}
-    itemSize={35}
-    itemCount={props.children.length}
-    width="100%"
-    ref={ref}
-  >
-    {({ index, style }) => <div style={style}>{props.children[index]}</div>}
-  </FixedSizeList>
-));
+// VirtualizedList component
+const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
+  (props, ref) => {
+    return (
+      <FixedSizeList
+        {...props}
+        ref={ref}
+        height={DROPDOWN_HEIGHT}
+        itemSize={35}
+        width="100%"
+        itemCount={props.children ? React.Children.count(props.children) : 0}
+      >
+        {({ index, style }) => (
+          <div style={style}>
+            {React.Children.toArray(props.children)[index]}
+          </div>
+        )}
+      </FixedSizeList>
+    );
+  }
+);
+
+VirtualizedList.displayName = "VirtualizedList";
 
 type CustomSelectFieldProps = {
   control: any;
@@ -44,22 +56,17 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
     name: config.name,
     defaultValue: config.defaultValue || "",
     rules: {
-      required: config.required
-        ? `${config.label} is required`
-        : false,
+      required: config.required ? `${config.label} is required` : false,
     },
   });
+
   const { error } = fieldState;
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleOnChange = (value: string) => {
     field.onChange(value);
-    if (onChange) {
-      onChange(value); // Trigger optional onChange callback
-    }
-    if (value) {
-      clearErrors(config.name); // Clear error on valid selection
-    }
+    if (onChange) onChange(value); // Trigger optional onChange callback
+    if (value) clearErrors(config.name); // Clear error on valid selection
   };
 
   const renderValue = (selected: string) => {
@@ -84,8 +91,9 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
         onOpen={() => setMenuOpen(true)}
         onClose={() => setMenuOpen(false)}
         onChange={(event) => {
-          const selectedValue = event.target.value;
+          const selectedValue = event.target.value as string;
           handleOnChange(selectedValue);
+          setMenuOpen(false); // Close menu after selection
         }}
         displayEmpty
         renderValue={renderValue}
@@ -100,7 +108,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           "aria-label": config.label,
         }}
         MenuProps={
-          config.options.length > 10
+          config.options && config.options.length > 10
             ? {
                 PaperProps: {
                   style: { maxHeight: DROPDOWN_HEIGHT },
@@ -119,23 +127,18 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
           }
         }}
       >
-        {config.options.length <= 10 ? (
-          <MenuItem
-            value=""
-            style={styles.fieldEntryStyles}
-            disabled
-          >
+        {config.options?.length <= 10 ? (
+          <MenuItem value="" style={styles.fieldEntryStyles} disabled>
             Select
           </MenuItem>
         ) : null}
         {lodash
-          .orderBy(config.options, ["value"], ["asc"])
+          .orderBy(config.options || [], ["value"], ["asc"])
           .map((option) => (
             <MenuItem
               key={option.key || option.value}
               value={option.key || option.value}
               style={styles.fieldEntryStyles}
-              onClick={() => setMenuOpen(false)} // Ensure menu closes on selection
             >
               {option.label || option.value}
             </MenuItem>
