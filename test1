@@ -1,10 +1,12 @@
-
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FormHelperText,
   MenuItem,
   Select,
   Tooltip,
+  Popper,
+  MenuList,
+  ClickAwayListener,
 } from "@mui/material";
 import { FixedSizeList } from "react-window";
 import { useController, useFormContext } from "react-hook-form";
@@ -42,17 +44,28 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
 
   const { error } = fieldState;
 
-  // Handle onChange event
-  const handleOnChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    const selectedValue = event.target.value;
-    if (onChange) {
-      onChange(event, selectedValue); // Trigger custom onChange if provided
-    }
-    field.onChange(selectedValue); // Default behavior
-    clearErrors(config.name); // Clear errors
+  // Local state to manage dropdown open/close
+  const [open, setOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleToggle = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+    setOpen((prevOpen) => !prevOpen);
   };
 
-  // Render selected value
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleOnChange = (value: any) => {
+    if (onChange) {
+      onChange({ target: { value } } as React.ChangeEvent<{ value: unknown }>, value);
+    }
+    field.onChange(value); // Default behavior
+    clearErrors(config.name); // Clear errors
+    setOpen(false); // Close dropdown after selection
+  };
+
   const renderValue = (selected: string) => {
     if (!selected) {
       return <span style={{ color: "#999" }}>Select</span>;
@@ -65,7 +78,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     return selectedOption?.label || selected;
   };
 
-  // Sort options dynamically and memoize
+  // Memoize sorted options for performance
   const sortedOptions = useMemo(
     () => _.orderBy(config.options, ["value"], ["asc"]),
     [config.options]
@@ -82,14 +95,14 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         key={option.key}
         value={option.value}
         style={style}
+        onClick={() => handleOnChange(option.value)}
       >
         {option.label}
       </MenuItem>
     );
   };
 
-  // Inject options into Material-UI's Menu component
-  const VirtualizedList = React.forwardRef((props, ref) => (
+  const VirtualizedList = React.forwardRef<HTMLDivElement>((props, ref) => (
     <FixedSizeList
       ref={ref}
       height={DROPDOWN_HEIGHT}
@@ -111,32 +124,29 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   return (
     <div>
       <CustomLabel htmlFor={config.name} label={config.label} />
-      <Select
-        id={config.name}
-        value={field.value || config.defaultValue || ""} // Default to config.defaultValue
-        {...register(config.name)}
-        onChange={handleOnChange} // Correctly handle onChange
-        displayEmpty
-        renderValue={renderValue}
-        IconComponent={IconComponent}
-        MenuProps={{
-          PaperProps: {
-            style: { maxHeight: DROPDOWN_HEIGHT, width: "auto" },
-          },
-          MenuListProps: {
-            component: VirtualizedList, // Inject VirtualizedList into the Menu
-          },
-        }}
-        inputProps={{
-          "data-testid": "custom_select",
-          "aria-controls": config.name,
-          "aria-label": config.label,
-        }}
-      >
-        <MenuItem value="" disabled>
-          <span style={{ color: "#999" }}>Select</span>
-        </MenuItem>
-      </Select>
+      <div>
+        <Select
+          id={config.name}
+          value={field.value || config.defaultValue || ""}
+          {...register(config.name)}
+          onClick={handleToggle}
+          displayEmpty
+          renderValue={renderValue}
+          IconComponent={IconComponent}
+          inputProps={{
+            "data-testid": "custom_select",
+            "aria-controls": config.name,
+            "aria-label": config.label,
+          }}
+        />
+        <Popper open={open} anchorEl={anchorEl} placement="bottom-start" style={{ zIndex: 1300 }}>
+          <ClickAwayListener onClickAway={handleClose}>
+            <MenuList autoFocusItem={open}>
+              <VirtualizedList />
+            </MenuList>
+          </ClickAwayListener>
+        </Popper>
+      </div>
       {error && (
         <FormHelperText style={{ color: "#D32F2F" }}>
           {error?.message || config.helperText || ""}
