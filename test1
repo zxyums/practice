@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FormHelperText,
@@ -93,7 +94,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         key={option.key || option.value}
         value={option.value}
         style={style}
-        onClick={() => handleOnChange(option.value)} // Select value
+        onClick={() => handleOnChange(option.value)} // Select value and close menu
       >
         {option.label || option.value}
       </MenuItem>
@@ -125,7 +126,11 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     if (sortedOptions.length <= 10) {
       // Render as normal MenuItems for small datasets
       return sortedOptions.map((option) => (
-        <MenuItem key={option.key || option.value} value={option.value}>
+        <MenuItem
+          key={option.key || option.value}
+          value={option.value}
+          onClick={() => handleOnChange(option.value)} // Close menu on click
+        >
           {option.label || option.value}
         </MenuItem>
       ));
