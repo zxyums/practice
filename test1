@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FormHelperText,
   MenuItem,
@@ -32,6 +32,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   });
 
   const { error } = fieldState;
+  const [menuOpen, setMenuOpen] = useState(false); // Control menu open state
 
   // Clear errors if a valid value is selected
   useEffect(() => {
@@ -41,12 +42,12 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   }, [field.value, clearErrors, config.name]);
 
   // Handle `onChange` behavior
-  const handleOnChange = (event: SelectChangeEvent<string>) => {
-    const selectedValue = event.target.value;
+  const handleOnChange = (value: string) => {
     if (onChange) {
-      onChange(event, selectedValue); // Call external onChange prop if provided
+      onChange({ target: { value } } as SelectChangeEvent<string>, value);
     }
-    field.onChange(selectedValue); // Default behavior
+    field.onChange(value); // Default behavior
+    setMenuOpen(false); // Close menu after selection
   };
 
   // Validate the current value against the dropdown options
@@ -92,7 +93,7 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         key={option.key || option.value}
         value={option.value}
         style={style}
-        onClick={() => handleOnChange({ target: { value: option.value } } as SelectChangeEvent<string>)}
+        onClick={() => handleOnChange(option.value)} // Select value
       >
         {option.label || option.value}
       </MenuItem>
@@ -141,7 +142,10 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         id={config.name}
         value={getValidValue()} // Validate the value
         {...register(config.name)}
-        onChange={handleOnChange}
+        open={menuOpen} // Control menu open state
+        onOpen={() => setMenuOpen(true)}
+        onClose={() => setMenuOpen(false)}
+        onChange={(event) => handleOnChange(event.target.value)}
         displayEmpty
         renderValue={renderValue}
         IconComponent={IconComponent}
