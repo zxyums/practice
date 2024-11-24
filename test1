@@ -1,25 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import {
-  MenuItem,
   Select,
+  MenuItem,
   FormHelperText,
   InputAdornment,
-  Tooltip,
 } from "@mui/material";
-import { FixedSizeList } from "react-window";
-import lodash from "lodash";
 import { useController, useFormContext } from "react-hook-form";
-import CustomLabel from "./CustomLabel";
-import { FieldConfig } from "../../types/formTypes";
-import * as styles from "../../shared/styles";
+import lodash from "lodash";
+import * as styles from "../../shared/styles"; // Ensure this path is correct
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { FixedSizeList } from "react-window";
+import { FieldConfig } from "../../types/formTypes"; // Importing FieldConfig
 
-const DROPDOWN_HEIGHT = 300;
+type CustomSelectFieldProps = {
+  config: FieldConfig;
+  onChange?: (event: React.ChangeEvent<{ value: unknown }>, value: any) => void;
+  control?: any;
+};
 
-// VirtualizedList Component
 const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
-  ({ children, height, width, itemSize }, ref) => (
+  ({ children, height, itemSize, width }, ref) => (
     <FixedSizeList
-      ref={ref as React.RefObject<FixedSizeList<any>>} // Correctly cast the ref
+      ref={ref as React.RefObject<FixedSizeList<any>>}
       height={height}
       itemSize={itemSize}
       itemCount={React.Children.count(children)}
@@ -27,7 +29,7 @@ const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
     >
       {({ index, style }) => (
         <div style={style}>
-          {React.Children.toArray(children)[index]}
+          {React.Children.toArray(children)[index] as React.ReactNode}
         </div>
       )}
     </FixedSizeList>
@@ -36,116 +38,88 @@ const VirtualizedList = React.forwardRef<HTMLDivElement, any>(
 
 VirtualizedList.displayName = "VirtualizedList";
 
-type CustomSelectFieldProps = {
-  control: any;
-  config: FieldConfig;
-  onChange?: (value: string) => void; // Optional custom onChange
-};
-
 const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
-  control,
   config,
   onChange,
+  control,
 }) => {
-  const { register, clearErrors } = useFormContext();
+  const { clearErrors } = useFormContext();
   const { field, fieldState } = useController({
-    control,
     name: config.name,
-    defaultValue: config.defaultValue || "",
+    control,
+    defaultValue: config.defaultValue || null,
     rules: {
       required: config.required ? `${config.label} is required` : false,
     },
   });
 
   const { error } = fieldState;
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleOnChange = (value: string) => {
-    field.onChange(value);
-    if (onChange) onChange(value); // Trigger custom onChange if provided
-    if (value) clearErrors(config.name); // Clear validation errors on valid selection
-    setMenuOpen(false); // Close dropdown on selection
-  };
-
-  const renderValue = (selected: string) => {
-    if (!selected) return <em style={styles.fieldEntryStyles}>Select</em>;
-    const selectedLabel = config.options?.find(
-      (option) => option.key === selected || option.value === selected
-    )?.label;
-    return selectedLabel || selected;
-  };
-
-  const getValidValue = () =>
-    field.value || (config.defaultValue ? config.defaultValue : "");
+  useEffect(() => {
+    if (field.value) {
+      clearErrors(config.name);
+    }
+  }, [field.value, config.name, clearErrors]);
 
   return (
     <div>
-      <CustomLabel htmlFor={config.name} label={config.label} />
       <Select
         id={config.name}
-        value={getValidValue()}
-        {...register(config.name)}
-        open={menuOpen}
-        onOpen={() => setMenuOpen(true)}
-        onClose={() => setMenuOpen(false)}
-        onChange={(event) => handleOnChange(event.target.value as string)}
-        displayEmpty
-        renderValue={renderValue}
-        IconComponent={(props) => (
-          <Tooltip title={config.toolTips || ""} placement="top">
-            <InputAdornment position="end" {...props} />
-          </Tooltip>
-        )}
-        inputProps={{
-          "data-testid": "custom_select",
-          "aria-controls": config.name,
-          "aria-label": config.label,
+        value={field.value || ""}
+        {...field}
+        onChange={(e) => {
+          field.onChange(e);
+          onChange?.(e, e.target.value);
         }}
-        MenuProps={
-          config.options && config.options.length > 10
-            ? {
-                PaperProps: {
-                  style: { maxHeight: DROPDOWN_HEIGHT },
-                },
-                MenuListProps: {
-                  component: VirtualizedList,
-                  children: config.options.map((option) => (
-                    <MenuItem
-                      key={option.key || option.value}
-                      value={option.key || option.value}
-                      style={styles.fieldEntryStyles}
-                    >
-                      {option.label || option.value}
-                    </MenuItem>
-                  )),
-                },
-              }
-            : {}
-        }
-        disabled={config.readOnly}
-        error={!!error}
         onBlur={() => {
           if (!field.value && config.required) {
             field.onBlur();
           }
         }}
+        fullWidth
+        displayEmpty
+        error={!!error}
+        disabled={config.readOnly}
+        IconComponent={(props) => (
+          <InputAdornment position="end">
+            <ArrowDropDownIcon {...props} />
+          </InputAdornment>
+        )}
+        MenuProps={{
+          PaperProps: {
+            style: { maxHeight: 200 }, // Set a fixed dropdown height
+          },
+          MenuListProps: {
+            component: VirtualizedList,
+            children: config.options.map((option) => (
+              <MenuItem
+                key={option.key || option.value}
+                value={option.key || option.value}
+                style={styles.fieldEntryStyles}
+              >
+                {option.label || option.value}
+              </MenuItem>
+            )),
+          },
+        }}
+        inputProps={{
+          "aria-controls": config.name,
+        }}
       >
-        {config.options?.length && config.options.length <= 10 ? (
+        {config.options.length > 10 && (
           <MenuItem value="" style={styles.fieldEntryStyles} disabled>
             Select
           </MenuItem>
-        ) : null}
-        {lodash
-          .orderBy(config.options || [], ["value"], ["asc"])
-          .map((option) => (
-            <MenuItem
-              key={option.key || option.value}
-              value={option.key || option.value}
-              style={styles.fieldEntryStyles}
-            >
-              {option.label || option.value}
-            </MenuItem>
-          ))}
+        )}
+        {config.options.map((option) => (
+          <MenuItem
+            key={option.key || option.value}
+            value={option.key || option.value}
+            style={styles.fieldEntryStyles}
+          >
+            {option.label || option.value}
+          </MenuItem>
+        ))}
       </Select>
       <FormHelperText style={{ color: "#B71C1C" }}>
         {error?.message || config.helperText || ""}
