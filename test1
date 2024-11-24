@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useState } from "react";
+import React, { useState, forwardRef } from "react";
 import {
   MenuItem,
   Select,
@@ -16,25 +16,22 @@ import * as styles from "../../shared/styles";
 const DROPDOWN_HEIGHT = 300;
 
 // VirtualizedList Component
-const VirtualizedList = forwardRef<HTMLDivElement, FixedSizeListProps>(
-  (props, ref) => {
-    return (
-      <FixedSizeList
-        {...props}
-        ref={ref as React.Ref<HTMLDivElement>} // Ensure proper ref type
-        height={DROPDOWN_HEIGHT}
-        itemSize={35}
-        width="100%"
-        itemCount={React.Children.count(props.children || [])} // Avoid undefined children
-      >
-        {({ index, style }) => (
-          <div style={style}>
-            {React.Children.toArray(props.children)[index]}
-          </div>
-        )}
-      </FixedSizeList>
-    );
-  }
+const VirtualizedList = forwardRef<FixedSizeList<any>, FixedSizeListProps>(
+  (props, ref) => (
+    <FixedSizeList
+      {...props}
+      ref={ref as React.RefObject<FixedSizeList<any>>} // Ensure correct type
+      height={DROPDOWN_HEIGHT}
+      itemSize={35}
+      width="100%"
+    >
+      {({ index, style }) => (
+        <div style={style}>
+          {React.Children.toArray(props.children)[index]}
+        </div>
+      )}
+    </FixedSizeList>
+  )
 );
 
 VirtualizedList.displayName = "VirtualizedList";
@@ -114,7 +111,7 @@ const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
                   style: { maxHeight: DROPDOWN_HEIGHT },
                 },
                 MenuListProps: {
-                  component: VirtualizedList,
+                  component: VirtualizedList, // Pass virtualized list component
                 },
               }
             : {}
