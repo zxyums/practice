@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FormHelperText,
@@ -22,7 +21,7 @@ type Props = {
 };
 
 const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
-  const { register, clearErrors } = useFormContext();
+  const { register, clearErrors, setError } = useFormContext();
   const { fieldState, field } = useController({
     control,
     name: config.name,
@@ -36,18 +35,24 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
   const [menuOpen, setMenuOpen] = useState(false); // Control menu open state
 
   // Clear errors if a valid value is selected
-  useEffect(() => {
-    if (field.value) {
+  const handleValueChange = (value: string) => {
+    if (value) {
       clearErrors(config.name);
+    } else if (config.required) {
+      setError(config.name, {
+        type: "required",
+        message: `${config.label} is required`,
+      });
     }
-  }, [field.value, clearErrors, config.name]);
+    field.onChange(value);
+  };
 
   // Handle `onChange` behavior
   const handleOnChange = (value: string) => {
     if (onChange) {
       onChange({ target: { value } } as SelectChangeEvent<string>, value);
     }
-    field.onChange(value); // Default behavior
+    handleValueChange(value); // Update validation and value
     setMenuOpen(false); // Close menu after selection
   };
 
