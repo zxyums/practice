@@ -114,6 +114,21 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
     </Tooltip>
   );
 
+  // Determine rendering strategy
+  const renderMenuItems = () => {
+    if (sortedOptions.length <= 10) {
+      // Render as normal MenuItems for small datasets
+      return sortedOptions.map((option) => (
+        <MenuItem key={option.key || option.value} value={option.value}>
+          {option.label || option.value}
+        </MenuItem>
+      ));
+    }
+
+    // Render virtualized list for large datasets
+    return null;
+  };
+
   return (
     <div className="flexing">
       <CustomLabel htmlFor={config.name} label={config.label} />
@@ -130,14 +145,18 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
           "aria-controls": config.name,
           "aria-label": config.label,
         }}
-        MenuProps={{
-          PaperProps: {
-            style: { maxHeight: DROPDOWN_HEIGHT },
-          },
-          MenuListProps: {
-            component: VirtualizedList,
-          },
-        }}
+        MenuProps={
+          sortedOptions.length > 10
+            ? {
+                PaperProps: {
+                  style: { maxHeight: DROPDOWN_HEIGHT },
+                },
+                MenuListProps: {
+                  component: VirtualizedList,
+                },
+              }
+            : {}
+        }
         disabled={config.readOnly}
         error={!!error}
       >
@@ -145,6 +164,8 @@ const CustomSelectField: React.FC<Props> = ({ control, config, onChange }) => {
         <MenuItem value="" disabled>
           <em style={styles.fieldEntryStyles}>Select</em>
         </MenuItem>
+
+        {renderMenuItems()}
       </Select>
       <FormHelperText style={{ color: error ? "#B71C1C" : "#999" }}>
         {error?.message || config.helperText || ""}
