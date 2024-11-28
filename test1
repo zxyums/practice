@@ -1,89 +1,203 @@
-import React, { useEffect } from "react";
-import {
-  Select,
-  MenuItem,
-  FormHelperText,
-  InputAdornment,
-} from "@mui/material";
-import { useController, useFormContext } from "react-hook-form";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import lodash from "lodash";
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { TextField, MenuItem, Button, Box, Typography } from "@mui/material";
 
-type CustomSelectFieldProps = {
-  config: FieldConfig;
-  onChange?: (
-    event: SelectChangeEvent<string | number | undefined>,
-    value: string | number | undefined
-  ) => void;
-  control?: any;
-};
+export default function OptimizedFormWithUseEffect() {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm();
 
-const CustomSelectField: React.FC<CustomSelectFieldProps> = ({
-  config,
-  onChange,
-  control,
-}) => {
-  const { clearErrors } = useFormContext();
-  const { field, fieldState } = useController({
-    name: config.name,
-    control,
-    defaultValue: config.defaultValue || "",
-    rules: {
-      required: config.required ? `${config.label} is required` : false,
-    },
-  });
+  // State to store the percentage
+  const [percentageFilled, setPercentageFilled] = useState(0);
 
-  const { error } = fieldState;
+  // Watch fields that impact conditional logic
+  const hasJob = watch("hasJob");
+  const isStudent = watch("isStudent");
 
+  // Base required fields
+  const baseRequiredFields = ["name", "email", "age", "gender", "address"];
+
+  // Conditional fields mapping
+  const conditionalFields = {
+    hasJob: { condition: hasJob === "yes", fields: ["company", "position"] },
+    isStudent: { condition: isStudent === "yes", fields: ["university"] },
+  };
+
+  /**
+   * Function to determine active required fields
+   */
+  const getActiveRequiredFields = () => {
+    let activeFields = [...baseRequiredFields];
+    Object.values(conditionalFields).forEach(({ condition, fields }) => {
+      if (condition) {
+        activeFields = [...activeFields, ...fields];
+      }
+    });
+    return activeFields;
+  };
+
+  /**
+   * Function to calculate the percentage of filled fields
+   */
+  const calculateFilledPercentage = (activeFields) => {
+    const filledFields = activeFields.filter(
+      (field) => watch(field)?.trim() !== ""
+    ).length;
+    return Math.round((filledFields / activeFields.length) * 100);
+  };
+
+  // Update percentage when watched fields change
   useEffect(() => {
-    if (field.value) {
-      clearErrors(config.name);
-    }
-  }, [field.value, config.name, clearErrors]);
+    const activeFields = getActiveRequiredFields();
+    setPercentageFilled(calculateFilledPercentage(activeFields));
+  }, [hasJob, isStudent, watch("name"), watch("email"), watch("age"), watch("gender"), watch("address"), watch("company"), watch("position"), watch("university")]);
 
-  // Sort and prepare options
-  const options = lodash.orderBy(config.options || [], ["value"], ["asc"]);
+  const onSubmit = (data) => {
+    console.log("Form Submitted: ", data);
+  };
 
   return (
-    <div>
-      <Select
-        id={config.name}
-        value={field.value || ""} // Ensure value is explicitly defined
-        onChange={(event) => {
-          field.onChange(event); // React Hook Form's handler
-          onChange?.(event, event.target.value); // External handler if provided
-        }}
-        onBlur={field.onBlur}
-        fullWidth
-        displayEmpty
-        error={!!error}
-        disabled={config.readOnly}
-        IconComponent={(props) => (
-          <InputAdornment position="end">
-            <ArrowDropDownIcon {...props} />
-          </InputAdornment>
-        )}
-        inputProps={{
-          "aria-controls": config.name,
-        }}
-      >
-        {options.length > 0 ? (
-          options.map((option) => (
-            <MenuItem key={option.key || option.value} value={option.value}>
-              {option.label || option.value}
-            </MenuItem>
-          ))
-        ) : (
-          <MenuItem value="" disabled>
-            No options available
-          </MenuItem>
-        )}
-      </Select>
-      <FormHelperText style={{ color: "#B71C1C" }}>
-        {error?.message || config.helperText || ""}
-      </FormHelperText>
-    </div>
-  );
-};
+    <Box sx={{ maxWidth: 500, margin: "0 auto", padding: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Optimized Form with useEffect
+      </Typography>
 
-export default CustomSelectField;
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Base Required Fields */}
+        <TextField
+          {...register("name", { required: true })}
+          label="Name"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          error={!!errors.name}
+          helperText={errors.name && "Name is required"}
+        />
+
+        <TextField
+          {...register("email", { required: true })}
+          label="Email"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          error={!!errors.email}
+          helperText={errors.email && "Email is required"}
+        />
+
+        <TextField
+          {...register("age", { required: true })}
+          label="Age"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          error={!!errors.age}
+          helperText={errors.age && "Age is required"}
+        />
+
+        <TextField
+          {...register("gender", { required: true })}
+          select
+          label="Gender"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          error={!!errors.gender}
+          helperText={errors.gender && "Gender is required"}
+        >
+          <MenuItem value="male">Male</MenuItem>
+          <MenuItem value="female">Female</MenuItem>
+          <MenuItem value="other">Other</MenuItem>
+        </TextField>
+
+        <TextField
+          {...register("address", { required: true })}
+          label="Address"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          error={!!errors.address}
+          helperText={errors.address && "Address is required"}
+        />
+
+        {/* Conditional Field: hasJob */}
+        <TextField
+          {...register("hasJob")}
+          select
+          label="Do you have a job?"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+        >
+          <MenuItem value="yes">Yes</MenuItem>
+          <MenuItem value="no">No</MenuItem>
+        </TextField>
+
+        {hasJob === "yes" && (
+          <>
+            <TextField
+              {...register("company", { required: true })}
+              label="Company"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              error={!!errors.company}
+              helperText={errors.company && "Company is required"}
+            />
+            <TextField
+              {...register("position", { required: true })}
+              label="Position"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              error={!!errors.position}
+              helperText={errors.position && "Position is required"}
+            />
+          </>
+        )}
+
+        {/* Conditional Field: isStudent */}
+        <TextField
+          {...register("isStudent")}
+          select
+          label="Are you a student?"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+        >
+          <MenuItem value="yes">Yes</MenuItem>
+          <MenuItem value="no">No</MenuItem>
+        </TextField>
+
+        {isStudent === "yes" && (
+          <TextField
+            {...register("university", { required: true })}
+            label="University"
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            error={!!errors.university}
+            helperText={errors.university && "University is required"}
+          />
+        )}
+
+        {/* Display percentage */}
+        <Typography variant="body1" sx={{ marginTop: 2 }}>
+          Filled Percentage of Required Fields: <strong>{percentageFilled}%</strong>
+        </Typography>
+
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ marginTop: 3 }}
+        >
+          Submit
+        </Button>
+      </form>
+    </Box>
+  );
+}
