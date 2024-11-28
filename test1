@@ -2,13 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { TextField, MenuItem, Button, Box, Typography } from "@mui/material";
 
-export default function OptimizedFormWithUseEffect() {
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm();
+export default function OptimizedFormWithVariable() {
+  const form = useForm(); // Assigning useForm to a variable
+  const { register, handleSubmit, watch, formState } = form;
 
   // State to store the percentage
   const [percentageFilled, setPercentageFilled] = useState(0);
@@ -62,7 +58,7 @@ export default function OptimizedFormWithUseEffect() {
   return (
     <Box sx={{ maxWidth: 500, margin: "0 auto", padding: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Optimized Form with useEffect
+        Optimized Form with Variable for useForm
       </Typography>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -73,8 +69,8 @@ export default function OptimizedFormWithUseEffect() {
           variant="outlined"
           fullWidth
           margin="normal"
-          error={!!errors.name}
-          helperText={errors.name && "Name is required"}
+          error={!!formState.errors.name}
+          helperText={formState.errors.name && "Name is required"}
         />
 
         <TextField
@@ -83,8 +79,8 @@ export default function OptimizedFormWithUseEffect() {
           variant="outlined"
           fullWidth
           margin="normal"
-          error={!!errors.email}
-          helperText={errors.email && "Email is required"}
+          error={!!formState.errors.email}
+          helperText={formState.errors.email && "Email is required"}
         />
 
         <TextField
@@ -93,8 +89,8 @@ export default function OptimizedFormWithUseEffect() {
           variant="outlined"
           fullWidth
           margin="normal"
-          error={!!errors.age}
-          helperText={errors.age && "Age is required"}
+          error={!!formState.errors.age}
+          helperText={formState.errors.age && "Age is required"}
         />
 
         <TextField
@@ -104,8 +100,8 @@ export default function OptimizedFormWithUseEffect() {
           variant="outlined"
           fullWidth
           margin="normal"
-          error={!!errors.gender}
-          helperText={errors.gender && "Gender is required"}
+          error={!!formState.errors.gender}
+          helperText={formState.errors.gender && "Gender is required"}
         >
           <MenuItem value="male">Male</MenuItem>
           <MenuItem value="female">Female</MenuItem>
@@ -118,8 +114,8 @@ export default function OptimizedFormWithUseEffect() {
           variant="outlined"
           fullWidth
           margin="normal"
-          error={!!errors.address}
-          helperText={errors.address && "Address is required"}
+          error={!!formState.errors.address}
+          helperText={formState.errors.address && "Address is required"}
         />
 
         {/* Conditional Field: hasJob */}
@@ -143,8 +139,8 @@ export default function OptimizedFormWithUseEffect() {
               variant="outlined"
               fullWidth
               margin="normal"
-              error={!!errors.company}
-              helperText={errors.company && "Company is required"}
+              error={!!formState.errors.company}
+              helperText={formState.errors.company && "Company is required"}
             />
             <TextField
               {...register("position", { required: true })}
@@ -152,8 +148,8 @@ export default function OptimizedFormWithUseEffect() {
               variant="outlined"
               fullWidth
               margin="normal"
-              error={!!errors.position}
-              helperText={errors.position && "Position is required"}
+              error={!!formState.errors.position}
+              helperText={formState.errors.position && "Position is required"}
             />
           </>
         )}
@@ -178,8 +174,8 @@ export default function OptimizedFormWithUseEffect() {
             variant="outlined"
             fullWidth
             margin="normal"
-            error={!!errors.university}
-            helperText={errors.university && "University is required"}
+            error={!!formState.errors.university}
+            helperText={formState.errors.university && "University is required"}
           />
         )}
 
