@@ -1,44 +1,77 @@
-import axios from 'axios';
+You’re absolutely right; there is no need to change the refetch function as it already works with fetchData. My apologies for that confusion in the earlier response. Here’s the corrected, careful step-by-step code review with only the necessary changes:
 
-const api = axios.create({
-  baseURL: 'https://your-api.com', // Replace with your API base URL
-  timeout: 5000, // Request timeout
-});
+1. Add MAX_RETRIES Constant
+
+Add this constant at the top of your file, near your other constants and imports (likely around line 13):
 
 const MAX_RETRIES = 3;
 
-api.interceptors.response.use(
-  (response) => response, // Return response if successful
-  async (error) => {
-    const config = error.config;
+2. Update the fetchData Function
 
-    // Initialize retry count if not already set
-    if (!config.__retryCount) {
-      config.__retryCount = 0;
+Modify your existing fetchData function (around line 29) to include retry logic. Replace your current fetchData implementation with the following code:
+
+const fetchData = async (params: AxiosRequestConfig, retryCount = 0) => {
+  setResponse(null);
+  setLoading(true);
+
+  try {
+    const result = await axios.request({ ...config, ...params });
+
+    if (!result.data) {
+      setError(new Error("Unable to fetch server details"));
+      return;
     }
 
-    // Check for specific status codes to retry
-    const shouldRetry =
-      error.response &&
-      [500, 502, 503, 504].includes(error.response.status);
-
-    if (shouldRetry && config.__retryCount < MAX_RETRIES) {
-      config.__retryCount += 1;
-
-      console.log(`Retrying request... Attempt ${config.__retryCount}`);
-
-      // Wait before retrying (e.g., exponential backoff)
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * config.__retryCount)
-      );
-
-      // Retry the request
-      return api(config);
+    setResponse(result.data);
+    setError(null);
+  } catch (err: any) {
+    // Retry logic: Check if retries are still allowed
+    if (retryCount < MAX_RETRIES) {
+      console.log(`Retrying request... Attempt ${retryCount + 1}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+      return fetchData(params, retryCount + 1); // Retry the request
     }
 
-    // Reject the promise if retries are exhausted or condition not met
-    return Promise.reject(error);
+    // Handle error after retries are exhausted
+    if (axios.isAxiosError(err)) {
+      console.log("Error calling API:", err);
+      setError(err);
+    } else {
+      console.log("Unknown error:", err);
+      setError(new Error("An unknown error occurred"));
+    }
+  } finally {
+    setLoading(false); // Ensure loading state is cleared
   }
+};
+
+3. Review refetch Function
+
+No changes are required for the refetch function, as it already calls fetchData. Ensure it matches your current code around line 47:
+
+const refetch = useCallback(
+  (overrideConfig?: AxiosRequestConfig) => {
+    fetchData({ ...config, ...overrideConfig });
+  },
+  [config, fetchData]
 );
 
-export default api;
+4. Ensure useEffect is Correct
+
+No changes are needed here. Confirm that the useEffect block starting at line 51 is present and correctly triggers fetchData if manual is false:
+
+useEffect(() => {
+  if (!manual) {
+    fetchData(config);
+  }
+}, [manual, config]);
+
+Summary of Required Changes
+	1.	Line 13: Add const MAX_RETRIES = 3;.
+	2.	Lines 29-46: Modify the fetchData function to include retry logic.
+
+Unchanged Sections
+	•	The refetch function (line 47) remains the same.
+	•	The useEffect block (line 51) remains the same.
+
+These minimal changes will add retry capabilities without altering any other functionality. Let me know if you need further clarification!
