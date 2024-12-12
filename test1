@@ -1,174 +1,43 @@
-If you want to handle JWT token expiration and refresh the token automatically, you can enhance the previous implementation to decode and validate the expiration of the JWT token before making API calls. Here’s how you can implement it step by step:
+import React from 'react';
 
-Steps to Handle JWT Token Expiration and Refresh
-	1.	Decode and Validate JWT Expiration:
-Use a library like jwt-decode to decode the JWT and check its expiration before each API request.
-	2.	Refresh Token Logic:
-Automatically refresh the token when it is expired or about to expire.
-	3.	Retry with the Refreshed Token:
-Retry the original request after refreshing the token.
+const DownloadFile = () => {
+  const handleDownload = async () => {
+    try {
+      const response = await fetch('/api/download-file', {
+        method: 'GET',
+      });
 
-Implementation
+      // Get the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
 
-1. Install jwt-decode
-
-npm install jwt-decode
-
-2. Updated Code
-
-Here’s the updated code to include JWT expiration handling:
-
-import jwtDecode from "jwt-decode";
-
-interface JwtPayload {
-  exp: number; // Expiration time in seconds since epoch
-}
-
-// Function to decode and check if the JWT is expired
-const isTokenExpired = (token: string): boolean => {
-  try {
-    const { exp } = jwtDecode<JwtPayload>(token);
-    const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-    return exp < currentTime;
-  } catch (error) {
-    console.error("Error decoding token:", error);
-    return true; // Treat as expired if decoding fails
-  }
-};
-
-// Function to refresh the token
-const getLatestToken = async (): Promise<string | null> => {
-  try {
-    const refreshToken = localStorage.getItem("refreshToken");
-    const response = await axios.post("/auth/refresh", { refreshToken });
-
-    if (response.data && response.data.accessToken) {
-      // Store the new access token
-      localStorage.setItem("accessToken", response.data.accessToken);
-      return response.data.accessToken;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error refreshing token:", error);
-    return null;
-  }
-};
-
-// Updated fetchData function
-const fetchData = async (params: AxiosRequestConfig, retryCount = 0) => {
-  setResponse(null);
-  setLoading(true);
-
-  try {
-    // Fetch the latest access token
-    let accessToken = useSelector((state: RootState) => state.user?.tokens?.accessToken);
-    if (!accessToken) {
-      accessToken = localStorage.getItem("accessToken") || "";
-    }
-
-    // Check if the token is expired
-    if (isTokenExpired(accessToken)) {
-      console.log("Token expired. Attempting to refresh...");
-      const newToken = await getLatestToken();
-
-      if (newToken) {
-        accessToken = newToken; // Use the new token for the current request
-      } else {
-        console.error("Failed to refresh token.");
-        setError(new Error("Authentication failed. Please log in again."));
-        return;
+      let fileName = 'downloaded-file'; // Default file name
+      if (contentDisposition && contentDisposition.includes('filename=')) {
+        // Split and extract the filename
+        const parts = contentDisposition.split('filename=');
+        fileName = parts[1].replace(/"/g, ''); // Remove double quotes if present
       }
+
+      // Convert response to a Blob
+      const blob = await response.blob();
+
+      // Create a link element to trigger the download
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = fileName; // Set the extracted file name
+      link.click();
+
+      // Clean up the URL object
+      window.URL.revokeObjectURL(link.href);
+    } catch (error) {
+      console.error('Error downloading file:', error);
     }
-
-    // Add the token to the headers
-    const updatedParams = {
-      ...config,
-      ...params,
-      headers: {
-        ...params.headers,
-        Authorization: `Bearer ${accessToken}`,
-      },
-    };
-
-    const result = await axios.request(updatedParams);
-
-    if (!result.data) {
-      setError(new Error("Unable to fetch server details"));
-      return;
-    }
-
-    setResponse(result.data);
-    setError(null);
-  } catch (err: any) {
-    // Retry logic for server errors or token refresh failures
-    if (retryCount < MAX_RETRIES) {
-      console.log(`Retrying request... Attempt ${retryCount + 1}`);
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
-      return fetchData(params, retryCount + 1); // Retry the request
-    }
-
-    // Handle error after retries are exhausted
-    if (axios.isAxiosError(err)) {
-      console.log("Error calling API:", err);
-      setError(err);
-    } else {
-      console.log("Unknown error:", err);
-      setError(new Error("An unknown error occurred"));
-    }
-  } finally {
-    setLoading(false); // Ensure loading state is cleared
-  }
-};
-
-What’s Changed?
-	1.	JWT Expiration Check (isTokenExpired):
-	•	Decodes the JWT and checks if it is expired before making an API call.
-
-const isTokenExpired = (token: string): boolean => {
-  const { exp } = jwtDecode<JwtPayload>(token);
-  const currentTime = Math.floor(Date.now() / 1000);
-  return exp < currentTime;
-};
-
-
-	2.	Dynamic Token Refresh (getLatestToken):
-	•	Uses a refresh token to fetch a new access token when the JWT is expired.
-	3.	Retry Logic with Refreshed Token:
-	•	If the token is expired, fetch a new one and retry the original request.
-	4.	Error Handling:
-	•	If the refresh token API fails, it gracefully handles the failure and prompts the user to log in again.
-
-Key Points
-	•	JWT Expiration Check:
-Ensures that requests are only made with valid tokens.
-	•	Seamless Token Refresh:
-Automatically handles token expiration without user intervention.
-	•	Error Handling:
-Prompts the user to re-authenticate if the refresh token is invalid or expired.
-
-Example Usage
-
-With this implementation, your useAxios hook will automatically handle expired tokens and refresh them as needed. Use it in your React component as before:
-
-import React from "react";
-import { useAxios } from "./useAxios";
-
-const ExampleComponent = () => {
-  const { response, error, loading, refetch } = useAxios({
-    config: { url: "/example-endpoint", method: "GET" },
-  });
+  };
 
   return (
     <div>
-      <h1>Example API Call</h1>
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: "red" }}>Error: {error.message}</p>}
-      {response && <pre>{JSON.stringify(response, null, 2)}</pre>}
-      <button onClick={() => refetch()}>Refetch</button>
+      <button onClick={handleDownload}>Download File</button>
     </div>
   );
 };
 
-export default ExampleComponent;
-
-This implementation will securely handle JWT expiration and ensure smooth retry logic with minimal disruption to the user. Let me know if you need further assistance!
+export default DownloadFile;
