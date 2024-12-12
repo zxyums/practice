@@ -1,17 +1,44 @@
-import jwtDecode from 'jwt-decode';
+import axios from 'axios';
 
-const logTokenDetails = (accessToken) => {
-  if (!accessToken) {
-    console.error("Access token is missing!");
-    return;
+const api = axios.create({
+  baseURL: 'https://your-api.com', // Replace with your API base URL
+  timeout: 5000, // Request timeout
+});
+
+const MAX_RETRIES = 3;
+
+api.interceptors.response.use(
+  (response) => response, // Return response if successful
+  async (error) => {
+    const config = error.config;
+
+    // Initialize retry count if not already set
+    if (!config.__retryCount) {
+      config.__retryCount = 0;
+    }
+
+    // Check for specific status codes to retry
+    const shouldRetry =
+      error.response &&
+      [500, 502, 503, 504].includes(error.response.status);
+
+    if (shouldRetry && config.__retryCount < MAX_RETRIES) {
+      config.__retryCount += 1;
+
+      console.log(`Retrying request... Attempt ${config.__retryCount}`);
+
+      // Wait before retrying (e.g., exponential backoff)
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * config.__retryCount)
+      );
+
+      // Retry the request
+      return api(config);
+    }
+
+    // Reject the promise if retries are exhausted or condition not met
+    return Promise.reject(error);
   }
-  const decoded = jwtDecode(accessToken);
-  const currentTime = Math.floor(Date.now() / 1000);
+);
 
-  console.log("Token Details:", decoded);
-  console.log("Current Time:", currentTime);
-  console.log("Expires At:", decoded.exp);
-  console.log("Time Left (seconds):", decoded.exp - currentTime);
-};
-
-logTokenDetails(accessToken);
+export default api;
