@@ -1,34 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-const MyForm = () => {
+const MyForm = ({ userRole }) => {
   const { register, getValues } = useForm();
 
-  // Define sections with conditional logic
+  // Define sections with fields
   const sections = [
     {
       name: "Section 1",
-      condition: () => true, // Always visible
       fields: [
-        { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
         { name: "field1", type: "input", placeholder: "Field 1", condition: () => true },
+        { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
       ],
     },
     {
-      name: "Section 2",
-      condition: (values) => values.dropdown1 === "optionA", // Visible only if dropdown1 = "optionA"
+      name: "Conditional Section",
+      condition: () => userRole === "admin", // Visible only for admin role
       fields: [
-        { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
-        { name: "field2", type: "input", placeholder: "Field 2", condition: (values) => values.dropdown2 === "optionX" },
+        { name: "adminField1", type: "input", placeholder: "Admin Field 1", condition: () => true },
+        { name: "adminField2", type: "input", placeholder: "Admin Field 2", condition: () => true },
       ],
     },
     {
       name: "Section 3",
-      condition: (values) => values.dropdown1 === "optionB", // Visible only if dropdown1 = "optionB"
       fields: [
-        { name: "dropdown3", type: "dropdown", options: ["optionY", "optionZ"], condition: (values) => values.dropdown1 === "optionB" },
-        { name: "field3", type: "input", placeholder: "Field 3", condition: (values) => values.dropdown3 === "optionY" },
-        { name: "conditionalField", type: "input", placeholder: "Conditional Field", condition: (values) => values.field3 && values.field3.length > 3 },
+        { name: "field3", type: "input", placeholder: "Field 3", condition: () => true },
+        { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
       ],
     },
   ];
@@ -43,7 +40,7 @@ const MyForm = () => {
   const calculateProgress = () => {
     const values = getValues();
     const activeFields = sections
-      .filter((section) => section.condition(values)) // Only consider active sections
+      .filter((section) => !section.condition || section.condition()) // Only active sections
       .flatMap((section) =>
         section.fields.filter((field) => field.condition(values))
       );
@@ -56,7 +53,7 @@ const MyForm = () => {
   const updateSectionStatuses = () => {
     const values = getValues();
     return sections.map((section) => {
-      if (!section.condition(values)) return false; // Skip inactive sections
+      if (section.condition && !section.condition()) return false; // Skip inactive sections
       const activeFields = section.fields.filter((field) => field.condition(values));
       const filledFields = activeFields.filter((field) => values[field.name]?.trim()).length;
       return activeFields.length > 0 && filledFields === activeFields.length;
@@ -82,7 +79,7 @@ const MyForm = () => {
   return (
     <form>
       {sections.map((section, index) =>
-        section.condition(getValues()) ? ( // Render section only if its condition is met
+        (!section.condition || section.condition()) ? ( // Render section only if its condition is met
           <div key={index} style={{ marginBottom: "20px", border: "1px solid #ccc", padding: "10px" }}>
             <h3>{section.name}</h3>
             {section.fields.map((field) =>
