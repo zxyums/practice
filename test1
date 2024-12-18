@@ -1,13 +1,14 @@
-import React from "react";
-import { useForm, useWatch } from "react-hook-form";
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 const MyForm = () => {
-  const { register, getValues, control } = useForm();
+  const { register, getValues } = useForm();
 
-  // Define sections with required fields and conditions
+  // Define sections with conditional logic
   const sections = [
     {
       name: "Section 1",
+      condition: () => true, // Always visible
       fields: [
         { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
         { name: "field1", type: "input", placeholder: "Field 1", condition: () => true },
@@ -15,6 +16,7 @@ const MyForm = () => {
     },
     {
       name: "Section 2",
+      condition: (values) => values.dropdown1 === "optionA", // Visible only if dropdown1 = "optionA"
       fields: [
         { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
         { name: "field2", type: "input", placeholder: "Field 2", condition: (values) => values.dropdown2 === "optionX" },
@@ -22,70 +24,93 @@ const MyForm = () => {
     },
     {
       name: "Section 3",
+      condition: (values) => values.dropdown1 === "optionB", // Visible only if dropdown1 = "optionB"
       fields: [
         { name: "dropdown3", type: "dropdown", options: ["optionY", "optionZ"], condition: (values) => values.dropdown1 === "optionB" },
         { name: "field3", type: "input", placeholder: "Field 3", condition: (values) => values.dropdown3 === "optionY" },
+        { name: "conditionalField", type: "input", placeholder: "Conditional Field", condition: (values) => values.field3 && values.field3.length > 3 },
       ],
     },
   ];
 
-  // Watch specific fields to dynamically update progress
-  const watchedValues = useWatch({ control });
+  // State for progress and section statuses
+  const [progress, setProgress] = useState(0);
+  const [sectionStatuses, setSectionStatuses] = useState(
+    sections.map(() => false)
+  );
 
-  // Filter required fields dynamically
-  const getActiveFields = () => {
-    const values = getValues();
-    return sections.flatMap((section) =>
-      section.fields.filter((field) => field.condition(values))
-    );
-  };
-
-  // Calculate overall progress dynamically
+  // Function to calculate progress dynamically
   const calculateProgress = () => {
-    const activeFields = getActiveFields();
-    const filledFields = activeFields.filter((field) => getValues()[field.name]?.trim()).length;
+    const values = getValues();
+    const activeFields = sections
+      .filter((section) => section.condition(values)) // Only consider active sections
+      .flatMap((section) =>
+        section.fields.filter((field) => field.condition(values))
+      );
+    const filledFields = activeFields.filter((field) => values[field.name]?.trim()).length;
 
     return activeFields.length ? Math.round((filledFields / activeFields.length) * 100) : 100;
   };
 
-  // Check if a section is complete dynamically
-  const isSectionComplete = (section) => {
-    const activeFields = section.fields.filter((field) => field.condition(getValues()));
-    const filledFields = activeFields.filter((field) => getValues()[field.name]?.trim()).length;
-
-    return activeFields.length > 0 && filledFields === activeFields.length;
+  // Function to update section completion statuses
+  const updateSectionStatuses = () => {
+    const values = getValues();
+    return sections.map((section) => {
+      if (!section.condition(values)) return false; // Skip inactive sections
+      const activeFields = section.fields.filter((field) => field.condition(values));
+      const filledFields = activeFields.filter((field) => values[field.name]?.trim()).length;
+      return activeFields.length > 0 && filledFields === activeFields.length;
+    });
   };
+
+  // Monitor all fields for changes
+  useEffect(() => {
+    const allFieldNames = sections.flatMap((section) =>
+      section.fields.map((field) => field.name)
+    );
+
+    // Check if any monitored field changed
+    const values = getValues();
+    const hasChanges = allFieldNames.some((field) => values[field] !== undefined);
+
+    if (hasChanges) {
+      setProgress(calculateProgress());
+      setSectionStatuses(updateSectionStatuses());
+    }
+  }, [getValues]);
 
   return (
     <form>
-      {sections.map((section, index) => (
-        <div key={index} style={{ marginBottom: "20px", border: "1px solid #ccc", padding: "10px" }}>
-          <h3>{section.name}</h3>
-          {section.fields.map((field) =>
-            field.condition(watchedValues) ? (
-              field.type === "dropdown" ? (
-                <select key={field.name} {...register(field.name)} defaultValue="">
-                  <option value="">Select {field.name}</option>
-                  {field.options.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  key={field.name}
-                  {...register(field.name)}
-                  placeholder={field.placeholder}
-                />
-              )
-            ) : null
-          )}
-          <p>Status: {isSectionComplete(section) ? "Complete" : "Incomplete"}</p>
-        </div>
-      ))}
+      {sections.map((section, index) =>
+        section.condition(getValues()) ? ( // Render section only if its condition is met
+          <div key={index} style={{ marginBottom: "20px", border: "1px solid #ccc", padding: "10px" }}>
+            <h3>{section.name}</h3>
+            {section.fields.map((field) =>
+              field.condition(getValues()) ? (
+                field.type === "dropdown" ? (
+                  <select key={field.name} {...register(field.name)} defaultValue="">
+                    <option value="">Select {field.name}</option>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    key={field.name}
+                    {...register(field.name)}
+                    placeholder={field.placeholder}
+                  />
+                )
+              ) : null
+            )}
+            <p>Status: {sectionStatuses[index] ? "Complete" : "Incomplete"}</p>
+          </div>
+        ) : null
+      )}
       <div style={{ marginTop: "20px" }}>
-        <h4>Overall Progress: {calculateProgress()}%</h4>
+        <h4>Overall Progress: {progress}%</h4>
       </div>
     </form>
   );
