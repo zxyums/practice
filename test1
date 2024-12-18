@@ -1,61 +1,92 @@
 import React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 const MyForm = () => {
-  const { register, getValues } = useForm();
+  const { register, getValues, control } = useForm();
 
-  // Centralized field definitions with conditional logic
-  const fields = [
-    { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
-    { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
-    { name: "dropdown3", type: "dropdown", options: ["optionY", "optionZ"], condition: (values) => values.dropdown1 === "optionB" },
-    { name: "field1", type: "input", placeholder: "Field 1", condition: () => true },
-    { name: "field2", type: "input", placeholder: "Field 2", condition: (values) => values.dropdown2 === "optionX" },
-    { name: "field3", type: "input", placeholder: "Field 3", condition: (values) => values.dropdown3 === "optionY" },
+  // Define sections with required fields and conditions
+  const sections = [
+    {
+      name: "Section 1",
+      fields: [
+        { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
+        { name: "field1", type: "input", placeholder: "Field 1", condition: () => true },
+      ],
+    },
+    {
+      name: "Section 2",
+      fields: [
+        { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
+        { name: "field2", type: "input", placeholder: "Field 2", condition: (values) => values.dropdown2 === "optionX" },
+      ],
+    },
+    {
+      name: "Section 3",
+      fields: [
+        { name: "dropdown3", type: "dropdown", options: ["optionY", "optionZ"], condition: (values) => values.dropdown1 === "optionB" },
+        { name: "field3", type: "input", placeholder: "Field 3", condition: (values) => values.dropdown3 === "optionY" },
+      ],
+    },
   ];
 
-  const calculateProgress = () => {
-    const values = getValues(); // Get current form values
-    const activeFields = fields.filter((field) => field.condition(values)); // Only fields meeting conditions
-    const filledFields = activeFields.filter((field) => values[field.name]?.trim()).length; // Count filled fields
+  // Watch specific fields to dynamically update progress
+  const watchedValues = useWatch({ control });
 
-    const totalRequired = activeFields.length;
-    const progress = totalRequired ? (filledFields / totalRequired) * 100 : 100; // Avoid division by 0
-
-    console.log(`Progress: ${progress}%`);
-    return progress;
+  // Filter required fields dynamically
+  const getActiveFields = () => {
+    const values = getValues();
+    return sections.flatMap((section) =>
+      section.fields.filter((field) => field.condition(values))
+    );
   };
 
-  const handleSubmit = () => {
-    const progress = calculateProgress();
-    alert(`Form progress: ${progress}%`);
+  // Calculate overall progress dynamically
+  const calculateProgress = () => {
+    const activeFields = getActiveFields();
+    const filledFields = activeFields.filter((field) => getValues()[field.name]?.trim()).length;
+
+    return activeFields.length ? Math.round((filledFields / activeFields.length) * 100) : 100;
+  };
+
+  // Check if a section is complete dynamically
+  const isSectionComplete = (section) => {
+    const activeFields = section.fields.filter((field) => field.condition(getValues()));
+    const filledFields = activeFields.filter((field) => getValues()[field.name]?.trim()).length;
+
+    return activeFields.length > 0 && filledFields === activeFields.length;
   };
 
   return (
     <form>
-      {fields.map((field) =>
-        field.condition(getValues()) ? (
-          field.type === "dropdown" ? (
-            <select key={field.name} {...register(field.name)} defaultValue="">
-              <option value="">Select {field.name}</option>
-              {field.options.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              key={field.name}
-              {...register(field.name)}
-              placeholder={field.placeholder}
-            />
-          )
-        ) : null
-      )}
-      <button type="button" onClick={handleSubmit}>
-        Check Progress
-      </button>
+      {sections.map((section, index) => (
+        <div key={index} style={{ marginBottom: "20px", border: "1px solid #ccc", padding: "10px" }}>
+          <h3>{section.name}</h3>
+          {section.fields.map((field) =>
+            field.condition(watchedValues) ? (
+              field.type === "dropdown" ? (
+                <select key={field.name} {...register(field.name)} defaultValue="">
+                  <option value="">Select {field.name}</option>
+                  {field.options.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  key={field.name}
+                  {...register(field.name)}
+                  placeholder={field.placeholder}
+                />
+              )
+            ) : null
+          )}
+          <p>Status: {isSectionComplete(section) ? "Complete" : "Incomplete"}</p>
+        </div>
+      ))}
+      <div style={{ marginTop: "20px" }}>
+        <h4>Overall Progress: {calculateProgress()}%</h4>
+      </div>
     </form>
   );
 };
