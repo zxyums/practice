@@ -1,43 +1,63 @@
-import React from 'react';
+import React from "react";
+import { useForm } from "react-hook-form";
 
-const DownloadFile = () => {
-  const handleDownload = async () => {
-    try {
-      const response = await fetch('/api/download-file', {
-        method: 'GET',
-      });
+const MyForm = () => {
+  const { register, getValues } = useForm();
 
-      // Get the Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
+  // Centralized field definitions with conditional logic
+  const fields = [
+    { name: "dropdown1", type: "dropdown", options: ["optionA", "optionB", "optionC"], condition: () => true },
+    { name: "dropdown2", type: "dropdown", options: ["optionX", "optionY"], condition: (values) => values.dropdown1 === "optionA" },
+    { name: "dropdown3", type: "dropdown", options: ["optionY", "optionZ"], condition: (values) => values.dropdown1 === "optionB" },
+    { name: "field1", type: "input", placeholder: "Field 1", condition: () => true },
+    { name: "field2", type: "input", placeholder: "Field 2", condition: (values) => values.dropdown2 === "optionX" },
+    { name: "field3", type: "input", placeholder: "Field 3", condition: (values) => values.dropdown3 === "optionY" },
+  ];
 
-      let fileName = 'downloaded-file'; // Default file name
-      if (contentDisposition && contentDisposition.includes('filename=')) {
-        // Split and extract the filename
-        const parts = contentDisposition.split('filename=');
-        fileName = parts[1].replace(/"/g, ''); // Remove double quotes if present
-      }
+  const calculateProgress = () => {
+    const values = getValues(); // Get current form values
+    const activeFields = fields.filter((field) => field.condition(values)); // Only fields meeting conditions
+    const filledFields = activeFields.filter((field) => values[field.name]?.trim()).length; // Count filled fields
 
-      // Convert response to a Blob
-      const blob = await response.blob();
+    const totalRequired = activeFields.length;
+    const progress = totalRequired ? (filledFields / totalRequired) * 100 : 100; // Avoid division by 0
 
-      // Create a link element to trigger the download
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = fileName; // Set the extracted file name
-      link.click();
+    console.log(`Progress: ${progress}%`);
+    return progress;
+  };
 
-      // Clean up the URL object
-      window.URL.revokeObjectURL(link.href);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-    }
+  const handleSubmit = () => {
+    const progress = calculateProgress();
+    alert(`Form progress: ${progress}%`);
   };
 
   return (
-    <div>
-      <button onClick={handleDownload}>Download File</button>
-    </div>
+    <form>
+      {fields.map((field) =>
+        field.condition(getValues()) ? (
+          field.type === "dropdown" ? (
+            <select key={field.name} {...register(field.name)} defaultValue="">
+              <option value="">Select {field.name}</option>
+              {field.options.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              key={field.name}
+              {...register(field.name)}
+              placeholder={field.placeholder}
+            />
+          )
+        ) : null
+      )}
+      <button type="button" onClick={handleSubmit}>
+        Check Progress
+      </button>
+    </form>
   );
 };
 
-export default DownloadFile;
+export default MyForm;
