@@ -1,27 +1,44 @@
 const filteringOption = useMemo(() => {
-    if (inputValue === "" || inputValue === selectedValue) {
+    if (!inputValue || inputValue === selectedValue) {
         return options;
     }
 
-    // Check if inputValue is a numeric value
+    // Check if inputValue is numeric
     const numericInput = Number(inputValue);
     const isNumericInput = !isNaN(numericInput);
 
     return options?.filter((option) => {
+        // Normalize value and key for comparison
+        const value = option?.value?.toString();
+        const key = option?.key?.toString();
+
         if (isNumericInput) {
-            // First priority: numeric matching
-            return Number(option?.value) === numericInput || Number(option?.key) === numericInput;
+            // Exact numeric match
+            if (Number(value) === numericInput || Number(key) === numericInput) {
+                return true;
+            }
+
+            // Partial numeric match
+            if (value?.includes(inputValue) || key?.includes(inputValue)) {
+                return true;
+            }
         }
 
-        // Second priority: string matching
-        const valueMatch = 
-            typeof option?.value === "string" &&
-            option?.value.toLowerCase().includes(inputValue.toLowerCase());
+        // Fallback: String matching for non-numeric input
+        if (
+            typeof value === "string" &&
+            value.toLowerCase().includes(inputValue.toLowerCase())
+        ) {
+            return true;
+        }
 
-        const keyMatch = 
-            typeof option?.key === "string" &&
-            option?.key.toLowerCase().includes(inputValue.toLowerCase());
+        if (
+            typeof key === "string" &&
+            key.toLowerCase().includes(inputValue.toLowerCase())
+        ) {
+            return true;
+        }
 
-        return valueMatch || keyMatch;
+        return false;
     });
 }, [inputValue, options, selectedValue, mode]);
