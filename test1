@@ -1,2 +1,27 @@
-const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-console.log("Browser's time zone:", timeZone);
+const filteringOption = useMemo(() => {
+    if (inputValue === "" || inputValue === selectedValue) {
+        return options;
+    }
+
+    // Check if inputValue is a numeric value
+    const numericInput = Number(inputValue);
+    const isNumericInput = !isNaN(numericInput);
+
+    return options?.filter((option) => {
+        if (isNumericInput) {
+            // First priority: numeric matching
+            return Number(option?.value) === numericInput || Number(option?.key) === numericInput;
+        }
+
+        // Second priority: string matching
+        const valueMatch = 
+            typeof option?.value === "string" &&
+            option?.value.toLowerCase().includes(inputValue.toLowerCase());
+
+        const keyMatch = 
+            typeof option?.key === "string" &&
+            option?.key.toLowerCase().includes(inputValue.toLowerCase());
+
+        return valueMatch || keyMatch;
+    });
+}, [inputValue, options, selectedValue, mode]);
