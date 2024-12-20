@@ -1,44 +1,20 @@
-const filteringOption = useMemo(() => {
-    if (!inputValue || inputValue === selectedValue) {
-        return options;
+// Import lodash
+const _ = require('lodash');
+
+// Sorting options based on mode
+const options: OptionType[] = _.orderBy(
+  config.options,
+  [(item) => {
+    if (mode === "key") {
+      // If mode is "key", treat the key as a number if possible
+      return isNaN(Number(item.key)) ? item.key : Number(item.key);
+    } else {
+      // If mode is "value", sort by value directly
+      return item.value;
     }
+  }],
+  ['asc'] // Ascending order
+);
 
-    // Check if inputValue is numeric
-    const numericInput = Number(inputValue);
-    const isNumericInput = !isNaN(numericInput);
-
-    return options?.filter((option) => {
-        // Normalize value and key for comparison
-        const value = option?.value?.toString();
-        const key = option?.key?.toString();
-
-        if (isNumericInput) {
-            // Exact numeric match
-            if (Number(value) === numericInput || Number(key) === numericInput) {
-                return true;
-            }
-
-            // Partial numeric match from the start
-            if (value?.startsWith(inputValue) || key?.startsWith(inputValue)) {
-                return true;
-            }
-        }
-
-        // Fallback: String matching for non-numeric input
-        if (
-            typeof value === "string" &&
-            value.toLowerCase().startsWith(inputValue.toLowerCase())
-        ) {
-            return true;
-        }
-
-        if (
-            typeof key === "string" &&
-            key.toLowerCase().startsWith(inputValue.toLowerCase())
-        ) {
-            return true;
-        }
-
-        return false;
-    });
-}, [inputValue, options, selectedValue, mode]);
+// Output the sorted options
+console.log(options);
