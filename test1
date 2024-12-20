@@ -1,20 +1,20 @@
 // Import lodash
 const _ = require('lodash');
 
-// Sorting options with mode logic and prioritizing numbers over strings
+// Sorting options with mode logic and proper handling of numbers and strings
 const options: OptionType[] = _.orderBy(
   config.options,
   [(item) => {
     if (mode === "key") {
-      // Sort by key: prioritize numbers over strings
+      // Check and prioritize numbers for the key
       return isNaN(Number(item.key)) ? item.key : Number(item.key);
     } else if (mode === "value") {
-      // Sort by value: prioritize numbers over strings
+      // Check and prioritize numbers for the value
       return isNaN(Number(item.value)) ? item.value : Number(item.value);
     }
   }],
   ['asc'] // Ascending order
 );
 
-// Output the sorted options
+// Log the sorted options to verify
 console.log(options);
