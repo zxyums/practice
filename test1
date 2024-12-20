@@ -18,8 +18,8 @@ const filteringOption = useMemo(() => {
                 return true;
             }
 
-            // Partial numeric match
-            if (value?.includes(inputValue) || key?.includes(inputValue)) {
+            // Partial numeric match from the start
+            if (value?.startsWith(inputValue) || key?.startsWith(inputValue)) {
                 return true;
             }
         }
@@ -27,14 +27,14 @@ const filteringOption = useMemo(() => {
         // Fallback: String matching for non-numeric input
         if (
             typeof value === "string" &&
-            value.toLowerCase().includes(inputValue.toLowerCase())
+            value.toLowerCase().startsWith(inputValue.toLowerCase())
         ) {
             return true;
         }
 
         if (
             typeof key === "string" &&
-            key.toLowerCase().includes(inputValue.toLowerCase())
+            key.toLowerCase().startsWith(inputValue.toLowerCase())
         ) {
             return true;
         }
