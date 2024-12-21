@@ -1,16 +1,67 @@
-// Import lodash
-const _ = require('lodash');
+// tokenUtils.ts
+import jwtDecode from "jwt-decode";
 
-// Sorting options based on mode
-const options: OptionType[] = _.orderBy(
-  config.options,
-  [(item) => {
-    const valueToSort = mode === "key" ? item.key : item.value;
-    // Check if the value is numeric (string representing a number)
-    return isNaN(Number(valueToSort)) ? valueToSort : Number(valueToSort);
-  }],
-  ['asc'] // Ascending order
-);
+export const getTokenExpirationTime = (token: string): number | null => {
+  try {
+    const decodedToken: any = jwtDecode(token);
+    return decodedToken.exp * 1000; // Convert expiration to milliseconds
+  } catch (error) {
+    console.error("Failed to decode token:", error);
+    return null;
+  }
+};
 
-// Log the sorted options
-console.log(options);
+export const shouldRenewToken = (token: string): boolean => {
+  const expirationTime = getTokenExpirationTime(token);
+  const currentTime = Date.now();
+  const bufferTime = 60000; // Renew 1 minute before expiration
+  return expirationTime && expirationTime - currentTime <= bufferTime;
+};
+
+
+import { useEffect } from "react";
+import { useOidcAccessToken, useOidcUser, useOidc } from "@axa-fr/react-oidc";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "./store";
+import { setAccessToken } from "../app/redux/reducers/UserTokenReducer";
+import { getTokenExpirationTime, shouldRenewToken } from "./tokenUtils";
+
+export const GetUserTokens = () => {
+  const { accessToken } = useOidcAccessToken();
+  const dispatch = useDispatch<AppDispatch>();
+  const { oidcUser, renewToken } = useOidc();
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    // Save token to localStorage and Redux
+    localStorage.setItem("accessToken", accessToken);
+    dispatch(setAccessToken(accessToken));
+
+    // Check if token needs renewal
+    const renewTokenBeforeExpiry = () => {
+      const expirationTime = getTokenExpirationTime(accessToken);
+      if (!expirationTime) return;
+
+      const currentTime = Date.now();
+      const timeToRenew = expirationTime - currentTime - 60000; // 1 minute before expiration
+
+      if (timeToRenew > 0) {
+        setTimeout(async () => {
+          try {
+            console.log("Renewing token...");
+            await renewToken(); // OIDC library silent token renewal
+          } catch (error) {
+            console.error("Failed to renew token:", error);
+          }
+        }, timeToRenew);
+      } else {
+        console.warn("Token already expired. Please re-login.");
+      }
+    };
+
+    renewTokenBeforeExpiry();
+  }, [accessToken, dispatch, renewToken]);
+
+  return null;
+};
